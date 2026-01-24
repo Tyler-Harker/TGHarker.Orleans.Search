@@ -1,0 +1,137 @@
+name: Build and Publish to NuGet
+
+on:
+  push:
+    branches: [master, main]
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0, v1.2.3-beta
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  NUGET_OUTPUT: ./nupkgs
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for versioning
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      # Uncomment when you have tests
+      # - name: Test
+      #   run: dotnet test --configuration Release --no-build --verbosity normal
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          # Extract version from tag (e.g., v1.0.0 -> 1.0.0)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Pack NuGet packages
+        run: |
+          dotnet pack TGHarker.Orleans.Search.Abstractions/TGHarker.Orleans.Search.Abstractions.csproj \
+            --configuration Release \
+            --no-build \
+            --output ${{ env.NUGET_OUTPUT }} \
+            -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+
+          dotnet pack TGHarker.Orleans.Search.Core/TGHarker.Orleans.Search.Core.csproj \
+            --configuration Release \
+            --no-build \
+            --output ${{ env.NUGET_OUTPUT }} \
+            -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+
+          dotnet pack TGHarker.Orleans.Search.Orleans/TGHarker.Orleans.Search.Orleans.csproj \
+            --configuration Release \
+            --no-build \
+            --output ${{ env.NUGET_OUTPUT }} \
+            -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+
+          dotnet pack TGHarker.Orleans.Search.PostgreSQL/TGHarker.Orleans.Search.PostgreSQL.csproj \
+            --configuration Release \
+            --no-build \
+            --output ${{ env.NUGET_OUTPUT }} \
+            -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+
+          dotnet pack TGHarker.Orleans.Search.SourceGenerator/TGHarker.Orleans.Search.SourceGenerator.csproj \
+            --configuration Release \
+            --no-build \
+            --output ${{ env.NUGET_OUTPUT }} \
+            -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+
+          dotnet pack TGHarker.Orleans.Search/TGHarker.Orleans.Search.csproj \
+            --configuration Release \
+            --no-build \
+            --output ${{ env.NUGET_OUTPUT }} \
+            -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+
+      - name: List packages
+        run: ls -la ${{ env.NUGET_OUTPUT }}
+
+      - name: Push packages to NuGet.org
+        run: |
+          dotnet nuget push "${{ env.NUGET_OUTPUT }}/*.nupkg" \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+
+      - name: Push symbol packages to NuGet.org
+        run: |
+          dotnet nuget push "${{ env.NUGET_OUTPUT }}/*.snupkg" \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+
+      - name: Upload packages as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: |
+            ${{ env.NUGET_OUTPUT }}/*.nupkg
+            ${{ env.NUGET_OUTPUT }}/*.snupkg
+          retention-days: 30
