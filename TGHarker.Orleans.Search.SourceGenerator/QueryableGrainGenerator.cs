@@ -183,6 +183,10 @@ public class QueryableGrainGenerator : IIncrementalGenerator
 
     private static bool IsSupportedPropertyType(ITypeSymbol type)
     {
+        // Support enums
+        if (type.TypeKind == TypeKind.Enum)
+            return true;
+
         if (type.SpecialType != SpecialType.None)
         {
             return type.SpecialType switch

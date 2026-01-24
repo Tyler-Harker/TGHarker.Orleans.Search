@@ -24,7 +24,7 @@ internal static class SearchProviderGenerator
         builder.AppendLine($"/// Generated search provider for {stateInfo.StateTypeName}.");
         builder.AppendLine("/// </summary>");
         builder.AppendLine($"public class {stateInfo.StateTypeName}SearchProvider<TGrain> : SearchProviderBase<TGrain, {stateInfo.StateTypeName}, {stateInfo.StateTypeName}Entity>");
-        builder.AppendLine("    where TGrain : Orleans.IGrain");
+        builder.AppendLine("    where TGrain : global::Orleans.IGrain");
         builder.AppendLine("{");
         builder.AppendLine("    private readonly PostgreSqlSearchContext _dbContext;");
         builder.AppendLine();
