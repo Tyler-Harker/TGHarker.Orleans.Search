@@ -1,17 +1,17 @@
 # Search Client
 
-The `ISearchableClusterClient` interface extends Orleans `IClusterClient` with search capabilities.
+Orleans.Search adds the `Search<TGrain>()` extension method to Orleans's `IClusterClient`, enabling you to query grains by their state properties.
 
 ## Getting the Client
 
-Inject `ISearchableClusterClient` from the dependency injection container:
+Inject `IClusterClient` from the dependency injection container:
 
 ```csharp
 public class MyService
 {
-    private readonly ISearchableClusterClient _client;
+    private readonly IClusterClient _client;
 
-    public MyService(ISearchableClusterClient client)
+    public MyService(IClusterClient client)
     {
         _client = client;
     }
@@ -21,7 +21,7 @@ public class MyService
 Or resolve it directly:
 
 ```csharp
-var client = serviceProvider.GetRequiredService<ISearchableClusterClient>();
+var client = serviceProvider.GetRequiredService<IClusterClient>();
 ```
 
 ## The Search Method
@@ -51,9 +51,9 @@ client.Search<TGrain>()     // Start query
 ```csharp
 public class ProductService
 {
-    private readonly ISearchableClusterClient _client;
+    private readonly IClusterClient _client;
 
-    public ProductService(ISearchableClusterClient client)
+    public ProductService(IClusterClient client)
     {
         _client = client;
     }
@@ -100,16 +100,16 @@ public class ProductService
 }
 ```
 
-## IClusterClient Compatibility
+## Standard Grain Operations
 
-`ISearchableClusterClient` extends `IClusterClient`, so you can use it for standard grain operations too:
+Since `Search` is an extension method on `IClusterClient`, you use the same client for both standard grain operations and search:
 
 ```csharp
 public class UserService
 {
-    private readonly ISearchableClusterClient _client;
+    private readonly IClusterClient _client;
 
-    public UserService(ISearchableClusterClient client)
+    public UserService(IClusterClient client)
     {
         _client = client;
     }

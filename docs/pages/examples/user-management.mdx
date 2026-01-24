@@ -104,9 +104,9 @@ var app = builder.Build();
 ```csharp filename="UserService.cs"
 public class UserService
 {
-    private readonly ISearchableClusterClient _client;
+    private readonly IClusterClient _client;
 
-    public UserService(ISearchableClusterClient client)
+    public UserService(IClusterClient client)
     {
         _client = client;
     }

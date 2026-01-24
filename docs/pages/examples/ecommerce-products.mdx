@@ -105,9 +105,9 @@ public class ProductGrain : Grain, IProductGrain
 ```csharp filename="ProductCatalogService.cs"
 public class ProductCatalogService
 {
-    private readonly ISearchableClusterClient _client;
+    private readonly IClusterClient _client;
 
-    public ProductCatalogService(ISearchableClusterClient client)
+    public ProductCatalogService(IClusterClient client)
     {
         _client = client;
     }

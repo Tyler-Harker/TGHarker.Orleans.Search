@@ -73,7 +73,7 @@ builder.Services.AddOrleansSearch()
 ### 3. Query Your Grains
 
 ```csharp
-var client = serviceProvider.GetRequiredService<ISearchableClusterClient>();
+var client = serviceProvider.GetRequiredService<IClusterClient>();
 
 var activeUsers = await client.Search<IUserGrain>()
     .Where(u => u.IsActive == true)

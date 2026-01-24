@@ -101,9 +101,9 @@ public class OrderGrain : Grain, IOrderGrain
 ```csharp filename="OrderService.cs"
 public class OrderService
 {
-    private readonly ISearchableClusterClient _client;
+    private readonly IClusterClient _client;
 
-    public OrderService(ISearchableClusterClient client)
+    public OrderService(IClusterClient client)
     {
         _client = client;
     }
@@ -273,7 +273,7 @@ app.MapGet("/api/orders", async (
 app.MapPatch("/api/orders/{orderId}/status", async (
     string orderId,
     UpdateStatusRequest request,
-    ISearchableClusterClient client) =>
+    IClusterClient client) =>
 {
     var order = client.GetGrain<IOrderGrain>(orderId);
     await order.UpdateStatusAsync(request.Status);

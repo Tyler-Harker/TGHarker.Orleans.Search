@@ -8,7 +8,7 @@ Orleans.Search uses a decorator pattern to transparently intercept grain state w
 Application Code
     |
     v
-ISearchableClusterClient.Search<TGrain>().Where(...).ToListAsync()
+IClusterClient.Search<TGrain>().Where(...).ToListAsync()
     |
     v
 OrleansQueryProvider (Translates LINQ to EF Core queries)

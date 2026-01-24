@@ -2,9 +2,9 @@
 
 Orleans.Search provides several interfaces for search functionality.
 
-## ISearchableClusterClient
+## IClusterClient Extensions
 
-The main interface for searching grains by their state properties. Extends Orleans `IClusterClient`.
+Orleans.Search adds the `Search<TGrain>()` extension method to Orleans's `IClusterClient`, allowing you to query grains by their state properties using the standard cluster client.
 
 ### Namespace
 
@@ -12,12 +12,13 @@ The main interface for searching grains by their state properties. Extends Orlea
 TGHarker.Orleans.Search
 ```
 
-### Signature
+### Extension Method
 
 ```csharp
-public interface ISearchableClusterClient : IClusterClient
+public static class ClusterClientExtensions
 {
-    IOrleansQueryable<TGrain> Search<TGrain>() where TGrain : IGrain;
+    public static IOrleansQueryable<TGrain> Search<TGrain>(this IClusterClient client)
+        where TGrain : IGrain;
 }
 ```
 
@@ -29,7 +30,7 @@ public interface ISearchableClusterClient : IClusterClient
 
 ### Registration
 
-Registered automatically when you call `AddOrleansSearch()`:
+The extension method is available after calling `AddOrleansSearch()`:
 
 ```csharp
 builder.Services.AddOrleansSearch()
@@ -41,9 +42,9 @@ builder.Services.AddOrleansSearch()
 ```csharp
 public class MyService
 {
-    private readonly ISearchableClusterClient _client;
+    private readonly IClusterClient _client;
 
-    public MyService(ISearchableClusterClient client)
+    public MyService(IClusterClient client)
     {
         _client = client;
     }
@@ -57,9 +58,9 @@ public class MyService
 }
 ```
 
-### IClusterClient Compatibility
+### Standard IClusterClient
 
-Since `ISearchableClusterClient` extends `IClusterClient`, you can use it for standard grain operations:
+Since `Search` is an extension method on `IClusterClient`, you use the same client for both standard grain operations and search:
 
 ```csharp
 // Get grain by ID (standard Orleans)

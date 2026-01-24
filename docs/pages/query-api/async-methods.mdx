@@ -175,9 +175,9 @@ public async Task<bool> IsEmailTakenAsync(string email)
 ```csharp
 public class ProductCatalogService
 {
-    private readonly ISearchableClusterClient _client;
+    private readonly IClusterClient _client;
 
-    public ProductCatalogService(ISearchableClusterClient client)
+    public ProductCatalogService(IClusterClient client)
     {
         _client = client;
     }

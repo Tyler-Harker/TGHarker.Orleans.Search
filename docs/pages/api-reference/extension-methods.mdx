@@ -261,7 +261,7 @@ builder.Services.AddOrleansSearch()
     .UsePostgreSql("Host=localhost;Database=search;Username=postgres;Password=postgres");
 
 // Usage
-var client = app.Services.GetRequiredService<ISearchableClusterClient>();
+var client = app.Services.GetRequiredService<IClusterClient>();
 
 // ToListAsync
 var activeUsers = await client.Search<IUserGrain>()

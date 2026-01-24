@@ -1,6 +1,6 @@
 # Client Setup
 
-Configure your application to use `ISearchableClusterClient` for querying grains by their state.
+Configure your application to use `IClusterClient` for querying grains by their state.
 
 ## Basic Configuration
 
@@ -17,23 +17,23 @@ builder.UseOrleans(siloBuilder =>
     siloBuilder.AddSearchableGrainStorage("InnerStorage");
 });
 
-// Add Orleans.Search - this registers ISearchableClusterClient
+// Add Orleans.Search - this adds the Search extension method
 builder.Services.AddOrleansSearch()
     .UsePostgreSql("Host=localhost;Database=orleanssearch;Username=postgres;Password=postgres");
 
 var app = builder.Build();
 ```
 
-## Using ISearchableClusterClient
+## Using IClusterClient
 
-Inject `ISearchableClusterClient` wherever you need to search for grains:
+Inject `IClusterClient` wherever you need to search for grains:
 
 ```csharp
 public class UserService
 {
-    private readonly ISearchableClusterClient _client;
+    private readonly IClusterClient _client;
 
-    public UserService(ISearchableClusterClient client)
+    public UserService(IClusterClient client)
     {
         _client = client;
     }
@@ -61,9 +61,9 @@ public class UserService
 [Route("api/[controller]")]
 public class UsersController : ControllerBase
 {
-    private readonly ISearchableClusterClient _client;
+    private readonly IClusterClient _client;
 
-    public UsersController(ISearchableClusterClient client)
+    public UsersController(IClusterClient client)
     {
         _client = client;
     }
@@ -95,7 +95,7 @@ public class UsersController : ControllerBase
 ```csharp
 app.MapGet("/api/users/search", async (
     string email,
-    ISearchableClusterClient client) =>
+    IClusterClient client) =>
 {
     var users = await client.Search<IUserGrain>()
         .Where(u => u.Email.Contains(email))
@@ -125,7 +125,7 @@ builder.Services.AddOrleansSearch()
 var host = builder.Build();
 
 // Get the searchable client
-var client = host.Services.GetRequiredService<ISearchableClusterClient>();
+var client = host.Services.GetRequiredService<IClusterClient>();
 
 // Search for grains
 var users = await client.Search<IUserGrain>()
@@ -133,16 +133,16 @@ var users = await client.Search<IUserGrain>()
     .ToListAsync();
 ```
 
-## IClusterClient Compatibility
+## Standard Grain Operations
 
-`ISearchableClusterClient` extends `IClusterClient`, so you can use it for all grain operations:
+Since `Search` is an extension method on `IClusterClient`, you use the same client for both standard grain operations and search:
 
 ```csharp
 public class UserService
 {
-    private readonly ISearchableClusterClient _client;
+    private readonly IClusterClient _client;
 
-    public UserService(ISearchableClusterClient client)
+    public UserService(IClusterClient client)
     {
         _client = client;
     }

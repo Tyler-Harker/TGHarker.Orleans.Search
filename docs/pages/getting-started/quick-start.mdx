@@ -99,10 +99,10 @@ public class UserGrain : Grain, IUserGrain
 
 ## Step 4: Query Your Grains
 
-Use `ISearchableClusterClient` to search for grains by their state properties.
+Use `IClusterClient` to search for grains by their state properties.
 
 ```csharp
-var client = serviceProvider.GetRequiredService<ISearchableClusterClient>();
+var client = serviceProvider.GetRequiredService<IClusterClient>();
 
 // Find user by exact email
 var user = await client.Search<IUserGrain>()
