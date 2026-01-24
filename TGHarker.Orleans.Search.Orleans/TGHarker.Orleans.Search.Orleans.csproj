@@ -4,7 +4,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
+
+    <!-- NuGet Package Info -->
+    <PackageId>TGHarker.Orleans.Search.Orleans</PackageId>
+    <Description>Orleans integration for TGHarker.Orleans.Search. Includes SearchableGrainStorage, ISearchableClusterClient, and silo/client configuration extensions.</Description>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/"/>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Azure.Storage.Blobs" Version="12.26.0" />

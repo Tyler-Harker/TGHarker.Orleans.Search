@@ -1,9 +1,24 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <!-- NuGet Package Info -->
+    <PackageId>TGHarker.Orleans.Search</PackageId>
+    <Description>Meta package for TGHarker.Orleans.Search - Full-text and indexed search capabilities for Microsoft Orleans grains. Automatically syncs grain state to PostgreSQL for LINQ-based queries. Just add [Searchable] and [Queryable] attributes to your grain state classes.</Description>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/"/>
+  </ItemGroup>
+
+  <!-- Meta package - references all core packages -->
+  <ItemGroup>
+    <ProjectReference Include="..\TGHarker.Orleans.Search.Abstractions\TGHarker.Orleans.Search.Abstractions.csproj" />
+    <ProjectReference Include="..\TGHarker.Orleans.Search.Core\TGHarker.Orleans.Search.Core.csproj" />
+    <ProjectReference Include="..\TGHarker.Orleans.Search.Orleans\TGHarker.Orleans.Search.Orleans.csproj" />
+    <ProjectReference Include="..\TGHarker.Orleans.Search.SourceGenerator\TGHarker.Orleans.Search.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
 </Project>

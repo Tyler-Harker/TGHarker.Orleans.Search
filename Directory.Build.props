@@ -1,0 +1,27 @@
+<Project>
+  <PropertyGroup>
+    <!-- Package Metadata -->
+    <Authors>TGHarker</Authors>
+    <Company>TGHarker</Company>
+    <Copyright>Copyright © 2024-2025 TGHarker</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/TGHarker/TGHarker.Orleans.Search</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/TGHarker/TGHarker.Orleans.Search</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>orleans;search;grains;postgresql;linq;ef-core;distributed-systems</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- Build Settings -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <!-- Source Link for debugging -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+  </ItemGroup>
+</Project>

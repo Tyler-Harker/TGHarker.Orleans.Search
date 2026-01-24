@@ -4,7 +4,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
+
+    <!-- NuGet Package Info -->
+    <PackageId>TGHarker.Orleans.Search.Abstractions</PackageId>
+    <Description>Core abstractions and attributes for TGHarker.Orleans.Search. Includes [Searchable], [Queryable], and [FullTextSearchable] attributes for marking grain state classes as searchable.</Description>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/"/>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Orleans.Sdk" Version="10.0.0" />

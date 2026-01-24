@@ -4,7 +4,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
+
+    <!-- NuGet Package Info -->
+    <PackageId>TGHarker.Orleans.Search.PostgreSQL</PackageId>
+    <Description>PostgreSQL provider for TGHarker.Orleans.Search. Uses Entity Framework Core and Npgsql to store and query the search index with full-text search support.</Description>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/"/>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
