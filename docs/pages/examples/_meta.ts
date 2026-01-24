@@ -1,0 +1,5 @@
+export default {
+  'user-management': 'User Management',
+  'ecommerce-products': 'E-Commerce Products',
+  'order-tracking': 'Order Tracking',
+}
