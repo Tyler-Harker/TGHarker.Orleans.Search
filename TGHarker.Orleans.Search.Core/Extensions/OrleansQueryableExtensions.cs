@@ -49,6 +49,10 @@ public static class OrleansQueryableExtensions
     /// <summary>
     /// Asynchronously executes the query and returns the results as a list.
     /// </summary>
+    /// <typeparam name="TGrain">The grain interface type.</typeparam>
+    /// <param name="source">The queryable source.</param>
+    /// <param name="cancellationToken">A cancellation token to observe.</param>
+    /// <returns>A list of grain references matching the query.</returns>
     public static async Task<List<TGrain>> ToListAsync<TGrain>(
         this IQueryable<TGrain> source,
         CancellationToken cancellationToken = default)
@@ -71,6 +75,10 @@ public static class OrleansQueryableExtensions
     /// <summary>
     /// Asynchronously returns the first element of the sequence, or a default value if no element is found.
     /// </summary>
+    /// <typeparam name="TGrain">The grain interface type.</typeparam>
+    /// <param name="source">The queryable source.</param>
+    /// <param name="cancellationToken">A cancellation token to observe.</param>
+    /// <returns>The first grain reference, or null if none found.</returns>
     public static async Task<TGrain?> FirstOrDefaultAsync<TGrain>(
         this IQueryable<TGrain> source,
         CancellationToken cancellationToken = default)
@@ -92,6 +100,11 @@ public static class OrleansQueryableExtensions
     /// <summary>
     /// Asynchronously returns the first element of the sequence.
     /// </summary>
+    /// <typeparam name="TGrain">The grain interface type.</typeparam>
+    /// <param name="source">The queryable source.</param>
+    /// <param name="cancellationToken">A cancellation token to observe.</param>
+    /// <returns>The first grain reference.</returns>
+    /// <exception cref="InvalidOperationException">The sequence contains no elements.</exception>
     public static async Task<TGrain> FirstAsync<TGrain>(
         this IQueryable<TGrain> source,
         CancellationToken cancellationToken = default)
@@ -115,6 +128,10 @@ public static class OrleansQueryableExtensions
     /// <summary>
     /// Asynchronously returns the number of elements in the sequence.
     /// </summary>
+    /// <typeparam name="TGrain">The grain interface type.</typeparam>
+    /// <param name="source">The queryable source.</param>
+    /// <param name="cancellationToken">A cancellation token to observe.</param>
+    /// <returns>The number of matching grains.</returns>
     public static async Task<int> CountAsync<TGrain>(
         this IQueryable<TGrain> source,
         CancellationToken cancellationToken = default)
@@ -136,6 +153,10 @@ public static class OrleansQueryableExtensions
     /// <summary>
     /// Asynchronously determines whether the sequence contains any elements.
     /// </summary>
+    /// <typeparam name="TGrain">The grain interface type.</typeparam>
+    /// <param name="source">The queryable source.</param>
+    /// <param name="cancellationToken">A cancellation token to observe.</param>
+    /// <returns>True if any grains match; otherwise, false.</returns>
     public static async Task<bool> AnyAsync<TGrain>(
         this IQueryable<TGrain> source,
         CancellationToken cancellationToken = default)

@@ -8,9 +8,14 @@ using TGHarker.Orleans.Search.SourceGenerator.Models;
 
 namespace TGHarker.Orleans.Search.SourceGenerator;
 
+/// <summary>
+/// Roslyn source generator that creates search infrastructure from [Searchable] grain state classes.
+/// Generates entity classes, search providers, DbContext configurations, and DI extensions.
+/// </summary>
 [Generator]
 public class QueryableGrainGenerator : IIncrementalGenerator
 {
+    /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Find all classes with [GenerateSerializer] and [Searchable] attributes

@@ -9,6 +9,7 @@ namespace TGHarker.Orleans.Search.Core.Query;
 /// <summary>
 /// Query provider that executes LINQ queries against the search index and materializes grain references.
 /// </summary>
+/// <typeparam name="TGrain">The grain interface type.</typeparam>
 public class OrleansQueryProvider<TGrain> : IQueryProvider
     where TGrain : IGrain
 {
@@ -17,18 +18,34 @@ public class OrleansQueryProvider<TGrain> : IQueryProvider
     private readonly IServiceScope? _scope;
     private LambdaExpression? _entityFilter;
 
+    /// <summary>
+    /// Initializes a new instance with a typed search provider.
+    /// </summary>
+    /// <param name="searchProvider">The search provider instance.</param>
+    /// <param name="clusterClient">The Orleans cluster client.</param>
     public OrleansQueryProvider(ISearchProvider<TGrain, object> searchProvider, IClusterClient clusterClient)
     {
         _searchProvider = searchProvider ?? throw new ArgumentNullException(nameof(searchProvider));
         _clusterClient = clusterClient ?? throw new ArgumentNullException(nameof(clusterClient));
     }
 
+    /// <summary>
+    /// Initializes a new instance with an untyped search provider.
+    /// </summary>
+    /// <param name="searchProvider">The search provider instance.</param>
+    /// <param name="clusterClient">The Orleans cluster client.</param>
     public OrleansQueryProvider(object searchProvider, IClusterClient clusterClient)
     {
         _searchProvider = searchProvider ?? throw new ArgumentNullException(nameof(searchProvider));
         _clusterClient = clusterClient ?? throw new ArgumentNullException(nameof(clusterClient));
     }
 
+    /// <summary>
+    /// Initializes a new instance with an untyped search provider and service scope.
+    /// </summary>
+    /// <param name="searchProvider">The search provider instance.</param>
+    /// <param name="clusterClient">The Orleans cluster client.</param>
+    /// <param name="scope">The service scope for scoped services like DbContext.</param>
     public OrleansQueryProvider(object searchProvider, IClusterClient clusterClient, IServiceScope? scope)
     {
         _searchProvider = searchProvider ?? throw new ArgumentNullException(nameof(searchProvider));
@@ -39,12 +56,15 @@ public class OrleansQueryProvider<TGrain> : IQueryProvider
     /// <summary>
     /// Adds a filter expression to be applied to the entity query.
     /// </summary>
+    /// <typeparam name="TEntity">The entity type to filter.</typeparam>
+    /// <param name="predicate">The filter predicate.</param>
     public void AddEntityFilter<TEntity>(Expression<Func<TEntity, bool>> predicate)
         where TEntity : class, ISearchEntity
     {
         _entityFilter = predicate;
     }
 
+    /// <inheritdoc />
     public IQueryable<TElement> CreateQuery<TElement>(Expression expression)
     {
         if (typeof(TElement) != typeof(TGrain))
@@ -53,6 +73,7 @@ public class OrleansQueryProvider<TGrain> : IQueryProvider
         return (IQueryable<TElement>)(object)new OrleansQueryable<TGrain>(this, expression);
     }
 
+    /// <inheritdoc />
     public IQueryable CreateQuery(Expression expression)
     {
         Type elementType = expression.Type.GetGenericArguments()[0];
@@ -60,6 +81,7 @@ public class OrleansQueryProvider<TGrain> : IQueryProvider
         return (IQueryable)Activator.CreateInstance(queryableType, this, expression)!;
     }
 
+    /// <inheritdoc />
     public TResult Execute<TResult>(Expression expression)
     {
         // Synchronous execution - calls async version
@@ -69,6 +91,7 @@ public class OrleansQueryProvider<TGrain> : IQueryProvider
             : throw new InvalidOperationException("Unexpected result type");
     }
 
+    /// <inheritdoc />
     public object Execute(Expression expression)
     {
         return Execute<object>(expression);
@@ -77,6 +100,9 @@ public class OrleansQueryProvider<TGrain> : IQueryProvider
     /// <summary>
     /// Executes the query asynchronously and returns grain references.
     /// </summary>
+    /// <param name="expression">The LINQ expression to execute.</param>
+    /// <param name="cancellationToken">A cancellation token to observe.</param>
+    /// <returns>A list of grain references matching the query.</returns>
     public async Task<List<TGrain>> ExecuteAsync(Expression expression, CancellationToken cancellationToken = default)
     {
         try

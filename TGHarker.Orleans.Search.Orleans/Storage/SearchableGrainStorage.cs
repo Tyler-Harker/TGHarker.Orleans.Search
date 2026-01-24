@@ -18,6 +18,12 @@ public class SearchableGrainStorage : IGrainStorage, ILifecycleParticipant<ISilo
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SearchableGrainStorage> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the SearchableGrainStorage class.
+    /// </summary>
+    /// <param name="innerStorage">The inner storage provider to delegate to.</param>
+    /// <param name="serviceProvider">The service provider for resolving search providers.</param>
+    /// <param name="logger">The logger instance.</param>
     public SearchableGrainStorage(
         IGrainStorage innerStorage,
         IServiceProvider serviceProvider,
@@ -28,6 +34,7 @@ public class SearchableGrainStorage : IGrainStorage, ILifecycleParticipant<ISilo
         _logger = logger;
     }
 
+    /// <inheritdoc />
     public void Participate(ISiloLifecycle lifecycle)
     {
         // Delegate lifecycle participation to the inner storage if it supports it
@@ -37,11 +44,13 @@ public class SearchableGrainStorage : IGrainStorage, ILifecycleParticipant<ISilo
         }
     }
 
+    /// <inheritdoc />
     public async Task ReadStateAsync<T>(string stateName, GrainId grainId, IGrainState<T> grainState)
     {
         await _innerStorage.ReadStateAsync(stateName, grainId, grainState);
     }
 
+    /// <inheritdoc />
     public async Task WriteStateAsync<T>(string stateName, GrainId grainId, IGrainState<T> grainState)
     {
         // First, write to the inner storage
@@ -51,6 +60,7 @@ public class SearchableGrainStorage : IGrainStorage, ILifecycleParticipant<ISilo
         await TrySyncToSearchAsync(grainId, grainState);
     }
 
+    /// <inheritdoc />
     public async Task ClearStateAsync<T>(string stateName, GrainId grainId, IGrainState<T> grainState)
     {
         await _innerStorage.ClearStateAsync(stateName, grainId, grainState);

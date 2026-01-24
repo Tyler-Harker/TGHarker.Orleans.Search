@@ -14,11 +14,16 @@ public class SearchProviderResolver : ISearchProviderResolver
 {
     private readonly Assembly[] _assembliesToScan;
 
+    /// <summary>
+    /// Initializes a new instance of the SearchProviderResolver class.
+    /// </summary>
+    /// <param name="assembliesToScan">Assemblies to scan for searchable state types.</param>
     public SearchProviderResolver(Assembly[] assembliesToScan)
     {
         _assembliesToScan = assembliesToScan ?? Array.Empty<Assembly>();
     }
 
+    /// <inheritdoc />
     public object? GetProvider<TGrain>(IServiceProvider serviceProvider) where TGrain : IGrain
     {
         var grainType = typeof(TGrain);

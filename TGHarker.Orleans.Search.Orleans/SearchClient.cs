@@ -19,6 +19,12 @@ public class SearchClient : ISearchClient
     private readonly ISearchProviderResolver _resolver;
     private readonly IServiceProvider _serviceProvider;
 
+    /// <summary>
+    /// Initializes a new instance of the SearchClient class.
+    /// </summary>
+    /// <param name="clusterClient">The Orleans cluster client.</param>
+    /// <param name="resolver">The search provider resolver.</param>
+    /// <param name="serviceProvider">The service provider for resolving dependencies.</param>
     public SearchClient(
         IClusterClient clusterClient,
         ISearchProviderResolver resolver,
@@ -29,6 +35,7 @@ public class SearchClient : ISearchClient
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
     }
 
+    /// <inheritdoc />
     public IQueryable<TGrain> Search<TGrain>() where TGrain : IGrain
     {
         var provider = _resolver.GetProvider<TGrain>(_serviceProvider);

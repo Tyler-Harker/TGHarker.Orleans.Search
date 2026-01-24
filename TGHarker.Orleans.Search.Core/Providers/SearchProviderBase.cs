@@ -10,12 +10,22 @@ namespace TGHarker.Orleans.Search.Core.Providers;
 /// Base class for search provider implementations.
 /// Provides common functionality for upserting, deleting, and querying grain state.
 /// </summary>
+/// <typeparam name="TGrain">The grain interface type.</typeparam>
+/// <typeparam name="TState">The grain state type.</typeparam>
+/// <typeparam name="TEntity">The EF Core entity type for the search index.</typeparam>
 public abstract class SearchProviderBase<TGrain, TState, TEntity> : ISearchProvider<TGrain, TState>
     where TGrain : IGrain
     where TEntity : class, ISearchEntity, new()
 {
+    /// <summary>
+    /// The Entity Framework Core database context.
+    /// </summary>
     protected readonly DbContext DbContext;
 
+    /// <summary>
+    /// Initializes a new instance of the search provider.
+    /// </summary>
+    /// <param name="dbContext">The EF Core database context.</param>
     protected SearchProviderBase(DbContext dbContext)
     {
         DbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
@@ -77,10 +87,26 @@ public abstract class SearchProviderBase<TGrain, TState, TEntity> : ISearchProvi
     /// <summary>
     /// Maps a grain property to an entity property expression.
     /// </summary>
+    /// <param name="member">The grain property member info.</param>
+    /// <param name="entityParameter">The entity parameter expression.</param>
+    /// <returns>An expression accessing the corresponding entity property.</returns>
     public abstract Expression MapGrainPropertyToEntity(MemberInfo member, ParameterExpression entityParameter);
 
+    /// <summary>
+    /// Maps a grain interface method to an entity property expression.
+    /// </summary>
+    /// <param name="method">The grain interface method info.</param>
+    /// <param name="entityParameter">The entity parameter expression.</param>
+    /// <returns>An expression accessing the corresponding entity property.</returns>
     public abstract Expression MapGrainMethodToEntityProperty(MethodInfo method, ParameterExpression entityParameter);
 
+    /// <summary>
+    /// Updates or inserts grain state into the search index.
+    /// </summary>
+    /// <param name="grainId">The grain identifier.</param>
+    /// <param name="state">The grain state to index.</param>
+    /// <param name="version">Version number for optimistic concurrency.</param>
+    /// <param name="timestamp">When this update occurred.</param>
     public async Task UpsertAsync(string grainId, TState state, long version, DateTime timestamp)
     {
         var existing = await GetEntityDbSet().FirstOrDefaultAsync(e => e.GrainId == grainId);
@@ -104,6 +130,10 @@ public abstract class SearchProviderBase<TGrain, TState, TEntity> : ISearchProvi
         await DbContext.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Removes a grain from the search index.
+    /// </summary>
+    /// <param name="grainId">The grain identifier to remove.</param>
     public async Task DeleteAsync(string grainId)
     {
         var entity = await GetEntityDbSet().FirstOrDefaultAsync(e => e.GrainId == grainId);
@@ -115,6 +145,13 @@ public abstract class SearchProviderBase<TGrain, TState, TEntity> : ISearchProvi
         }
     }
 
+    /// <summary>
+    /// Performs full-text search across indexed text fields.
+    /// </summary>
+    /// <param name="query">The search query text.</param>
+    /// <param name="maxResults">Maximum number of results to return.</param>
+    /// <param name="minScore">Minimum relevance score (0.0 to 1.0).</param>
+    /// <returns>Collection of grain IDs matching the search query.</returns>
     public virtual async Task<IEnumerable<string>> FullTextSearchAsync(string query, int maxResults, double minScore = 0.0)
     {
         // Default implementation - subclasses can override for database-specific full-text search

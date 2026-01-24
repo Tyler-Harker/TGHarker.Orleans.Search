@@ -12,11 +12,16 @@ namespace TGHarker.Orleans.Search.PostgreSQL;
 /// </summary>
 public class PostgreSqlSearchContext : DbContext
 {
+    /// <summary>
+    /// Initializes a new instance of the PostgreSqlSearchContext class.
+    /// </summary>
+    /// <param name="options">The DbContext options.</param>
     public PostgreSqlSearchContext(DbContextOptions<PostgreSqlSearchContext> options)
         : base(options)
     {
     }
 
+    /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Discover and register all entity types implementing ISearchEntity from loaded assemblies

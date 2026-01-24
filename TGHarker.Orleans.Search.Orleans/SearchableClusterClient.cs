@@ -18,6 +18,12 @@ public class SearchableClusterClient : ISearchableClusterClient
     private readonly ISearchProviderResolver _resolver;
     private readonly IServiceScopeFactory _scopeFactory;
 
+    /// <summary>
+    /// Initializes a new instance of the SearchableClusterClient class.
+    /// </summary>
+    /// <param name="inner">The inner Orleans cluster client to delegate to.</param>
+    /// <param name="resolver">The search provider resolver.</param>
+    /// <param name="scopeFactory">The service scope factory for creating request scopes.</param>
     public SearchableClusterClient(
         IClusterClient inner,
         ISearchProviderResolver resolver,

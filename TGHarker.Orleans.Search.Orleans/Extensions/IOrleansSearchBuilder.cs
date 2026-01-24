@@ -18,10 +18,15 @@ public interface IOrleansSearchBuilder
 /// </summary>
 public class OrleansSearchBuilder : IOrleansSearchBuilder
 {
+    /// <summary>
+    /// Initializes a new instance of the OrleansSearchBuilder class.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
     public OrleansSearchBuilder(IServiceCollection services)
     {
         Services = services;
     }
 
+    /// <inheritdoc />
     public IServiceCollection Services { get; }
 }

@@ -14,6 +14,11 @@ public class SearchableGrainStorageFactory
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SearchableGrainStorage> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the SearchableGrainStorageFactory class.
+    /// </summary>
+    /// <param name="serviceProvider">The service provider for resolving dependencies.</param>
+    /// <param name="logger">The logger instance.</param>
     public SearchableGrainStorageFactory(
         IServiceProvider serviceProvider,
         ILogger<SearchableGrainStorage> logger)
@@ -22,6 +27,12 @@ public class SearchableGrainStorageFactory
         _logger = logger;
     }
 
+    /// <summary>
+    /// Creates a new SearchableGrainStorage instance.
+    /// </summary>
+    /// <param name="name">The name of the storage provider.</param>
+    /// <param name="innerStorage">The inner storage provider to wrap.</param>
+    /// <returns>A new SearchableGrainStorage instance.</returns>
     public IGrainStorage Create(string name, IGrainStorage innerStorage)
     {
         return new SearchableGrainStorage(innerStorage, _serviceProvider, _logger);
