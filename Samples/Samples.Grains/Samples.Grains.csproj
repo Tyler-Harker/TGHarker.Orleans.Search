@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Core" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Orleans.Runtime" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Samples.Abstractions\Samples.Abstractions.csproj" />
+    <ProjectReference Include="..\..\TGHarker.Orleans.Search.Abstractions\TGHarker.Orleans.Search.Abstractions.csproj" />
+    <ProjectReference Include="..\..\TGHarker.Orleans.Search.Core\TGHarker.Orleans.Search.Core.csproj" />
+    <ProjectReference Include="..\..\TGHarker.Orleans.Search.Orleans\TGHarker.Orleans.Search.Orleans.csproj" />
+    <ProjectReference Include="..\..\TGHarker.Orleans.Search.PostgreSQL\TGHarker.Orleans.Search.PostgreSQL.csproj" />
+    <ProjectReference Include="..\..\TGHarker.Orleans.Search.SourceGenerator\TGHarker.Orleans.Search.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

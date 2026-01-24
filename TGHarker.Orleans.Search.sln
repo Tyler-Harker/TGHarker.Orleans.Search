@@ -1,0 +1,54 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TGHarker.Orleans.Search.Abstractions", "TGHarker.Orleans.Search.Abstractions\TGHarker.Orleans.Search.Abstractions.csproj", "{FD2A8068-7494-ED82-DEBA-81220D26AE0C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TGHarker.Orleans.Search.Core", "TGHarker.Orleans.Search.Core\TGHarker.Orleans.Search.Core.csproj", "{78BCAFBF-3F5A-FF69-4FA0-474D7CFF8931}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TGHarker.Orleans.Search.Orleans", "TGHarker.Orleans.Search.Orleans\TGHarker.Orleans.Search.Orleans.csproj", "{07B37868-B5A7-A844-59A2-CE3260A5FE46}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TGHarker.Orleans.Search.PostgreSQL", "TGHarker.Orleans.Search.PostgreSQL\TGHarker.Orleans.Search.PostgreSQL.csproj", "{2911CC7E-5850-F999-BA22-F1BE7DF5E517}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TGHarker.Orleans.Search.SourceGenerator", "TGHarker.Orleans.Search.SourceGenerator\TGHarker.Orleans.Search.SourceGenerator.csproj", "{162D4466-6393-4F45-D352-6E9E3E5175D0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TGHarker.Orleans.Search", "TGHarker.Orleans.Search\TGHarker.Orleans.Search.csproj", "{318004E7-42A2-BB18-D0C8-8E8B263CAEE7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FD2A8068-7494-ED82-DEBA-81220D26AE0C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD2A8068-7494-ED82-DEBA-81220D26AE0C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD2A8068-7494-ED82-DEBA-81220D26AE0C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD2A8068-7494-ED82-DEBA-81220D26AE0C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{78BCAFBF-3F5A-FF69-4FA0-474D7CFF8931}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{78BCAFBF-3F5A-FF69-4FA0-474D7CFF8931}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{78BCAFBF-3F5A-FF69-4FA0-474D7CFF8931}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{78BCAFBF-3F5A-FF69-4FA0-474D7CFF8931}.Release|Any CPU.Build.0 = Release|Any CPU
+		{07B37868-B5A7-A844-59A2-CE3260A5FE46}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07B37868-B5A7-A844-59A2-CE3260A5FE46}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07B37868-B5A7-A844-59A2-CE3260A5FE46}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07B37868-B5A7-A844-59A2-CE3260A5FE46}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2911CC7E-5850-F999-BA22-F1BE7DF5E517}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2911CC7E-5850-F999-BA22-F1BE7DF5E517}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2911CC7E-5850-F999-BA22-F1BE7DF5E517}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2911CC7E-5850-F999-BA22-F1BE7DF5E517}.Release|Any CPU.Build.0 = Release|Any CPU
+		{162D4466-6393-4F45-D352-6E9E3E5175D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{162D4466-6393-4F45-D352-6E9E3E5175D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{162D4466-6393-4F45-D352-6E9E3E5175D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{162D4466-6393-4F45-D352-6E9E3E5175D0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{318004E7-42A2-BB18-D0C8-8E8B263CAEE7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{318004E7-42A2-BB18-D0C8-8E8B263CAEE7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{318004E7-42A2-BB18-D0C8-8E8B263CAEE7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{318004E7-42A2-BB18-D0C8-8E8B263CAEE7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {60F28B91-56A3-46D0-8019-6C7405EF8BA5}
+	EndGlobalSection
+EndGlobal

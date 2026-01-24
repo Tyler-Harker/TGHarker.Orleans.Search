@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Samples.Abstractions/Samples.Abstractions.csproj" />
+  <Project Path="Samples.Client/Samples.Client.csproj" />
+  <Project Path="Samples.Grains/Samples.Grains.csproj" />
+  <Project Path="Samples.Silo/Samples.Silo.csproj" />
+</Solution>
