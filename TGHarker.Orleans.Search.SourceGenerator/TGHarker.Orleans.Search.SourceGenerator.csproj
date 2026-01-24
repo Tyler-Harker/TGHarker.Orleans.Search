@@ -10,9 +10,13 @@
     <PackageId>TGHarker.Orleans.Search.SourceGenerator</PackageId>
     <Description>Source generator for TGHarker.Orleans.Search. Automatically generates EF Core entities, search providers, and LINQ extension methods from [Searchable] grain state classes.</Description>
     <IsPackable>true</IsPackable>
-    <IncludeBuildOutput>false</IncludeBuildOutput>
     <DevelopmentDependency>true</DevelopmentDependency>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+
+    <!-- Include build output but suppress lib folder (analyzer only) -->
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+    <IncludeSymbols>false</IncludeSymbols>
+    <BuildOutputTargetFolder>analyzers/dotnet/cs</BuildOutputTargetFolder>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,10 +26,5 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />
-  </ItemGroup>
-
-  <!-- Pack the generator as an analyzer -->
-  <ItemGroup>
-    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
   </ItemGroup>
 </Project>
