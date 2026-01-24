@@ -1,0 +1,109 @@
+# Overview
+
+Orleans.Search uses a decorator pattern to transparently intercept grain state writes and maintain a synchronized search index in PostgreSQL.
+
+## Architecture
+
+```
+Application Code
+    |
+    v
+ISearchableClusterClient.Search<TGrain>().Where(...).ToListAsync()
+    |
+    v
+OrleansQueryProvider (Translates LINQ to EF Core queries)
+    |
+    v
+ISearchProvider<TGrain, TState> (Generated per grain type)
+    |
+    v
+SearchableGrainStorage (Intercepts writes, syncs to index)
+    |
+    v
+PostgreSqlSearchContext (EF Core DbContext)
+    |
+    v
+PostgreSQL Database (Search index + full-text search)
+```
+
+## Write Path
+
+When a grain updates its state:
+
+1. Grain calls `WriteStateAsync()`
+2. `SearchableGrainStorage` intercepts the call
+3. Delegates to inner storage (your actual persistence layer)
+4. Asynchronously calls `SearchProvider.UpsertAsync()` (fire-and-forget)
+5. Search index updated in PostgreSQL
+
+**Key insight:** The search sync is fire-and-forget, meaning it doesn't block the grain write. This keeps grain performance fast while maintaining eventual consistency in the search index.
+
+## Query Path
+
+When you search for grains:
+
+1. `client.Search<TGrain>().Where(...).ToListAsync()` is called
+2. Generated `Where` extension translates grain expression to entity expression
+3. `OrleansQueryProvider` calls `SearchProvider.QueryWithFilterAsync()`
+4. EF Core executes query against PostgreSQL
+5. Returns list of grain IDs
+6. IDs materialized into grain references
+7. Grain references returned to caller
+
+## Source Generation
+
+Orleans.Search uses Roslyn source generators to create code at compile time, eliminating reflection and providing type safety.
+
+For each `[Searchable]` state class, the generator creates:
+
+| Generated | Purpose |
+|-----------|---------|
+| **Entity Class** | EF Core entity with queryable properties (e.g., `UserStateEntity`) |
+| **Search Provider** | Implementation of `ISearchProvider<TGrain, TState>` with state-to-entity mapping |
+| **Search Model** | Query model for type-safe LINQ expressions |
+| **DbContext Partial** | Configures EF Core with the generated entity |
+| **DI Extensions** | Registration method for dependency injection |
+| **Query Extensions** | `Where()` methods for fluent API |
+
+All generated code is placed in a `.Generated` namespace.
+
+## Optimistic Concurrency
+
+Orleans.Search uses version-based optimistic concurrency to handle stale updates:
+
+- Each entity has a `Version` property
+- Updates only succeed if the version matches
+- Stale updates are ignored (later versions win)
+- This prevents race conditions when grains update rapidly
+
+## Supported Property Types
+
+The following property types can be marked as `[Queryable]`:
+
+| Category | Types |
+|----------|-------|
+| Primitives | `string`, `bool`, `int`, `long`, `short`, `byte` |
+| Numeric | `decimal`, `double`, `float` |
+| DateTime | `DateTime`, `DateTimeOffset`, `Guid` |
+
+## Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Fire-and-forget sync | Don't impact grain write performance; eventual consistency |
+| Source generation | Zero runtime reflection; compile-time safety |
+| Decorator pattern | Non-invasive; works with any existing storage provider |
+| EF Core for queries | Mature ORM; automatic SQL optimization |
+| Opt-in `[Queryable]` | Only index what you need; keeps index lean |
+| PostgreSQL focus | Production-ready; robust full-text search |
+
+## Current Limitations
+
+- Searchable states must use `IGrainWithStringKey` (string-keyed grains only)
+- OrderBy/pagination not yet supported (planned for v1.1)
+
+## Next Steps
+
+- [Searchable Attribute](/core-concepts/searchable-attribute) - Mark state classes for search
+- [Queryable Attribute](/core-concepts/queryable-attribute) - Configure indexed properties
+- [FullTextSearchable Attribute](/core-concepts/fulltext-search) - Enable full-text search

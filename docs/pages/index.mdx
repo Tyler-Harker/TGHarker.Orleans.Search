@@ -1,0 +1,101 @@
+# TGHarker.Orleans.Search
+
+Full-text and indexed search capabilities for Microsoft Orleans grains.
+
+## The Problem
+
+Orleans grains are virtual actors accessed by their identity keys. But what if you need to find grains by their *state properties*?
+
+- "Find all users with email ending in @example.com"
+- "Find products priced between $100 and $500"
+- "Find all orders with status 'Pending'"
+
+Without a search solution, you'd need to maintain a separate index manually, synchronize it with grain state, and build query infrastructure from scratch.
+
+## The Solution
+
+**Orleans.Search** automatically maintains a synchronized search index in PostgreSQL, enabling LINQ-style queries to find grains by their state properties.
+
+```csharp
+// Find users by email
+var users = await client.Search<IUserGrain>()
+    .Where(u => u.Email.Contains("@example.com"))
+    .ToListAsync();
+
+// Find products in a price range
+var products = await client.Search<IProductGrain>()
+    .Where(p => p.Price >= 100 && p.Price <= 500 && p.InStock == true)
+    .ToListAsync();
+```
+
+## Key Features
+
+- **Automatic Synchronization** - State changes sync to the search index automatically (fire-and-forget, non-blocking)
+- **LINQ Queries** - Familiar `Where`, `FirstOrDefault`, `Count` patterns
+- **Source Generation** - Zero boilerplate; just add attributes
+- **PostgreSQL Backend** - Leverages EF Core and PostgreSQL full-text search
+- **Full-Text Search** - PostgreSQL full-text search with relevance weighting
+
+## Quick Start
+
+### 1. Mark State as Searchable
+
+```csharp
+[Searchable(typeof(IUserGrain))]
+[GenerateSerializer]
+public class UserState
+{
+    [Queryable]
+    [FullTextSearchable(Weight = 2.0)]
+    [Id(0)]
+    public string Email { get; set; } = string.Empty;
+
+    [Queryable]
+    [Id(1)]
+    public bool IsActive { get; set; }
+}
+```
+
+### 2. Configure the Silo
+
+```csharp
+builder.UseOrleans(siloBuilder =>
+{
+    siloBuilder.UseLocalhostClustering();
+    siloBuilder.AddMemoryGrainStorage("InnerStorage");
+    siloBuilder.AddSearchableGrainStorage("InnerStorage");
+});
+
+builder.Services.AddOrleansSearch()
+    .UsePostgreSql("Host=localhost;Database=mydb;Username=postgres;Password=postgres");
+```
+
+### 3. Query Your Grains
+
+```csharp
+var client = serviceProvider.GetRequiredService<ISearchableClusterClient>();
+
+var activeUsers = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .ToListAsync();
+```
+
+## Requirements
+
+- .NET 10.0+
+- Microsoft Orleans 10.0+
+- PostgreSQL 12+
+- Entity Framework Core 9.0+
+
+## Installation
+
+```bash
+dotnet add package TGHarker.Orleans.Search
+dotnet add package TGHarker.Orleans.Search.PostgreSql
+```
+
+## Next Steps
+
+- [Getting Started](/getting-started/prerequisites) - Installation and setup guide
+- [Core Concepts](/core-concepts/overview) - Understanding the architecture
+- [Examples](/examples/user-management) - Real-world usage examples

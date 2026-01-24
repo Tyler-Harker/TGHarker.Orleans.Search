@@ -1,0 +1,285 @@
+# Extension Methods
+
+Orleans.Search provides extension methods for building and executing queries.
+
+## Query Building
+
+### Where
+
+Filters grains by a predicate on their state properties.
+
+```csharp
+IOrleansQueryable<TGrain> Where<TGrain>(
+    this IOrleansQueryable<TGrain> query,
+    Expression<Func<TModel, bool>> predicate
+) where TGrain : IGrain;
+```
+
+**Parameters:**
+- `predicate` - Lambda expression defining the filter condition
+
+**Returns:** `IOrleansQueryable<TGrain>` for method chaining
+
+**Example:**
+
+```csharp
+var query = client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .Where(u => u.Email.Contains("@example.com"));
+```
+
+---
+
+## Query Execution
+
+### ToListAsync
+
+Executes the query and returns all matching grains.
+
+```csharp
+Task<List<TGrain>> ToListAsync<TGrain>(
+    this IOrleansQueryable<TGrain> query
+) where TGrain : IGrain;
+```
+
+**Returns:** `List<TGrain>` containing all matching grain references
+
+**Example:**
+
+```csharp
+List<IUserGrain> users = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .ToListAsync();
+```
+
+---
+
+### FirstOrDefaultAsync
+
+Returns the first matching grain, or `null` if none match.
+
+```csharp
+Task<TGrain?> FirstOrDefaultAsync<TGrain>(
+    this IOrleansQueryable<TGrain> query
+) where TGrain : IGrain;
+```
+
+**Returns:** `TGrain?` - the first matching grain or `null`
+
+**Example:**
+
+```csharp
+IUserGrain? user = await client.Search<IUserGrain>()
+    .Where(u => u.Email == "alice@example.com")
+    .FirstOrDefaultAsync();
+```
+
+---
+
+### FirstAsync
+
+Returns the first matching grain. Throws if no grains match.
+
+```csharp
+Task<TGrain> FirstAsync<TGrain>(
+    this IOrleansQueryable<TGrain> query
+) where TGrain : IGrain;
+```
+
+**Returns:** `TGrain` - the first matching grain
+
+**Throws:** `InvalidOperationException` if no grains match
+
+**Example:**
+
+```csharp
+IUserGrain user = await client.Search<IUserGrain>()
+    .Where(u => u.Role == "admin")
+    .FirstAsync();
+```
+
+---
+
+### CountAsync
+
+Returns the count of matching grains.
+
+```csharp
+Task<int> CountAsync<TGrain>(
+    this IOrleansQueryable<TGrain> query
+) where TGrain : IGrain;
+```
+
+**Returns:** `int` - the count of matching grains
+
+**Example:**
+
+```csharp
+int activeCount = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .CountAsync();
+```
+
+---
+
+### AnyAsync
+
+Returns `true` if at least one grain matches.
+
+```csharp
+Task<bool> AnyAsync<TGrain>(
+    this IOrleansQueryable<TGrain> query
+) where TGrain : IGrain;
+```
+
+**Returns:** `bool` - `true` if any grains match
+
+**Example:**
+
+```csharp
+bool hasActiveUsers = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .AnyAsync();
+```
+
+---
+
+## Configuration Extensions
+
+### AddOrleansSearch
+
+Adds Orleans.Search services to the dependency injection container.
+
+```csharp
+IOrleansSearchBuilder AddOrleansSearch(
+    this IServiceCollection services
+);
+```
+
+**Returns:** `IOrleansSearchBuilder` for configuring providers
+
+**Example:**
+
+```csharp
+builder.Services.AddOrleansSearch()
+    .UsePostgreSql(connectionString);
+```
+
+---
+
+### UsePostgreSql
+
+Configures PostgreSQL as the search index provider.
+
+```csharp
+IOrleansSearchBuilder UsePostgreSql(
+    this IOrleansSearchBuilder builder,
+    string connectionString
+);
+```
+
+**Parameters:**
+- `connectionString` - PostgreSQL connection string
+
+**Returns:** `IOrleansSearchBuilder` for method chaining
+
+**Example:**
+
+```csharp
+builder.Services.AddOrleansSearch()
+    .UsePostgreSql("Host=localhost;Database=search;Username=postgres;Password=postgres");
+```
+
+---
+
+### AddSearchableGrainStorage
+
+Wraps an existing grain storage provider with search indexing.
+
+```csharp
+ISiloBuilder AddSearchableGrainStorage(
+    this ISiloBuilder builder,
+    string innerStorageName
+);
+```
+
+**Parameters:**
+- `innerStorageName` - Name of the inner storage provider to wrap
+
+**Example:**
+
+```csharp
+builder.UseOrleans(siloBuilder =>
+{
+    siloBuilder.AddMemoryGrainStorage("InnerStorage");
+    siloBuilder.AddSearchableGrainStorage("InnerStorage");
+});
+```
+
+---
+
+## Method Summary
+
+### Query Building
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `Where` | Filter by predicate | `IOrleansQueryable<TGrain>` |
+
+### Query Execution
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `ToListAsync` | Get all matching grains | `Task<List<TGrain>>` |
+| `FirstOrDefaultAsync` | Get first or null | `Task<TGrain?>` |
+| `FirstAsync` | Get first or throw | `Task<TGrain>` |
+| `CountAsync` | Count matches | `Task<int>` |
+| `AnyAsync` | Check if any match | `Task<bool>` |
+
+### Configuration
+
+| Method | Description |
+|--------|-------------|
+| `AddOrleansSearch` | Add search services |
+| `UsePostgreSql` | Configure PostgreSQL provider |
+| `AddSearchableGrainStorage` | Wrap storage with search |
+
+---
+
+## Complete Example
+
+```csharp
+// Configuration
+builder.UseOrleans(siloBuilder =>
+{
+    siloBuilder.UseLocalhostClustering();
+    siloBuilder.AddMemoryGrainStorage("Storage");
+    siloBuilder.AddSearchableGrainStorage("Storage");
+});
+
+builder.Services.AddOrleansSearch()
+    .UsePostgreSql("Host=localhost;Database=search;Username=postgres;Password=postgres");
+
+// Usage
+var client = app.Services.GetRequiredService<ISearchableClusterClient>();
+
+// ToListAsync
+var activeUsers = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .ToListAsync();
+
+// FirstOrDefaultAsync
+var user = await client.Search<IUserGrain>()
+    .Where(u => u.Email == "test@example.com")
+    .FirstOrDefaultAsync();
+
+// CountAsync
+var count = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .CountAsync();
+
+// AnyAsync
+var hasAdmin = await client.Search<IUserGrain>()
+    .Where(u => u.Role == "admin")
+    .AnyAsync();
+```

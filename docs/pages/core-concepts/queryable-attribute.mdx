@@ -1,0 +1,176 @@
+# [Queryable] Attribute
+
+The `[Queryable]` attribute marks a property for inclusion in the search index. Only properties with this attribute can be used in search queries.
+
+## Usage
+
+```csharp
+[Searchable(typeof(IUserGrain))]
+[GenerateSerializer]
+public class UserState
+{
+    [Queryable]
+    [Id(0)]
+    public string Email { get; set; } = string.Empty;
+
+    [Queryable(Indexed = true)]
+    [Id(1)]
+    public string Status { get; set; } = "active";
+
+    // Not queryable - stored in grain state but not searchable
+    [Id(2)]
+    public string InternalData { get; set; } = string.Empty;
+}
+```
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `Indexed` | `bool` | `false` | Create a database index for faster filtering |
+
+## When to Use Indexed
+
+Set `Indexed = true` for properties that:
+
+- Are frequently used in `Where` clauses
+- Have high cardinality (many unique values)
+- Are used for equality comparisons
+
+```csharp
+[Searchable(typeof(IOrderGrain))]
+public class OrderState
+{
+    // High-frequency filter - create index
+    [Queryable(Indexed = true)]
+    [Id(0)]
+    public string Status { get; set; } = "pending";
+
+    // Searched less often - no index needed
+    [Queryable]
+    [Id(1)]
+    public DateTime CreatedAt { get; set; }
+}
+```
+
+## Supported Types
+
+The following property types can be marked as `[Queryable]`:
+
+| Category | Types |
+|----------|-------|
+| Text | `string` |
+| Boolean | `bool` |
+| Integer | `int`, `long`, `short`, `byte` |
+| Decimal | `decimal`, `double`, `float` |
+| Date/Time | `DateTime`, `DateTimeOffset` |
+| Unique ID | `Guid` |
+
+## Query Operations by Type
+
+Different types support different query operations:
+
+### String Properties
+
+```csharp
+// Equality
+.Where(u => u.Email == "alice@example.com")
+
+// Contains (case-sensitive)
+.Where(u => u.Email.Contains("@example.com"))
+
+// StartsWith
+.Where(u => u.Email.StartsWith("alice"))
+
+// EndsWith
+.Where(u => u.Email.EndsWith(".com"))
+```
+
+### Numeric Properties
+
+```csharp
+// Equality
+.Where(p => p.Price == 100.00m)
+
+// Comparisons
+.Where(p => p.Price > 50.00m)
+.Where(p => p.Price >= 100.00m)
+.Where(p => p.Price < 500.00m)
+.Where(p => p.Price <= 200.00m)
+
+// Range
+.Where(p => p.Price >= 100.00m && p.Price <= 500.00m)
+```
+
+### Boolean Properties
+
+```csharp
+// Equality
+.Where(u => u.IsActive == true)
+.Where(p => p.InStock == false)
+```
+
+### DateTime Properties
+
+```csharp
+// Comparisons
+.Where(o => o.CreatedAt > DateTime.UtcNow.AddDays(-7))
+.Where(o => o.CreatedAt >= startDate && o.CreatedAt <= endDate)
+```
+
+## Combining Conditions
+
+Use `&&` (AND) and `||` (OR) to combine conditions:
+
+```csharp
+// AND
+.Where(p => p.InStock == true && p.Price < 100.00m)
+
+// OR
+.Where(u => u.Status == "active" || u.Status == "pending")
+
+// Complex
+.Where(p => p.Category == "electronics" &&
+            (p.Price < 500.00m || p.InStock == true))
+```
+
+## Best Practices
+
+1. **Be selective** - Only mark properties you actually need to search
+2. **Use indexes wisely** - Create indexes for frequently-filtered columns
+3. **Avoid over-indexing** - Too many indexes slow down writes
+4. **Consider cardinality** - Index high-cardinality columns (many unique values)
+
+## Example: E-commerce Product
+
+```csharp
+[Searchable(typeof(IProductGrain))]
+[GenerateSerializer]
+public class ProductState
+{
+    [Queryable]
+    [FullTextSearchable(Weight = 2.0)]
+    [Id(0)]
+    public string Name { get; set; } = string.Empty;
+
+    [Queryable(Indexed = true)]  // Frequently filtered
+    [Id(1)]
+    public string Category { get; set; } = string.Empty;
+
+    [Queryable]
+    [Id(2)]
+    public decimal Price { get; set; }
+
+    [Queryable(Indexed = true)]  // Frequently filtered
+    [Id(3)]
+    public bool InStock { get; set; }
+
+    // Not queryable
+    [Id(4)]
+    public string Description { get; set; } = string.Empty;
+}
+```
+
+## Next Steps
+
+- [FullTextSearchable Attribute](/core-concepts/fulltext-search) - Enable full-text search with weighting

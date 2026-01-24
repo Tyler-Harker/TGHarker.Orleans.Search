@@ -1,0 +1,160 @@
+# [FullTextSearchable] Attribute
+
+The `[FullTextSearchable]` attribute enables PostgreSQL full-text search on string properties, providing advanced text matching with relevance ranking.
+
+## Usage
+
+```csharp
+[Searchable(typeof(IProductGrain))]
+[GenerateSerializer]
+public class ProductState
+{
+    [Queryable]
+    [FullTextSearchable(Weight = 2.0)]
+    [Id(0)]
+    public string Name { get; set; } = string.Empty;
+
+    [Queryable]
+    [FullTextSearchable(Weight = 1.0)]
+    [Id(1)]
+    public string Description { get; set; } = string.Empty;
+}
+```
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `Weight` | `double` | `1.0` | Relevance weight for ranking (higher = more important) |
+
+## How It Works
+
+Full-text search uses PostgreSQL's built-in text search capabilities:
+
+1. Text is tokenized and normalized (lowercase, stemming)
+2. Stop words are removed
+3. Queries match against normalized tokens
+4. Results are ranked by relevance
+
+## Weighting
+
+The `Weight` parameter affects how results are ranked when multiple properties have full-text search:
+
+```csharp
+[Searchable(typeof(IArticleGrain))]
+public class ArticleState
+{
+    // Title matches rank higher
+    [Queryable]
+    [FullTextSearchable(Weight = 2.0)]
+    [Id(0)]
+    public string Title { get; set; } = string.Empty;
+
+    // Body matches rank lower
+    [Queryable]
+    [FullTextSearchable(Weight = 1.0)]
+    [Id(1)]
+    public string Body { get; set; } = string.Empty;
+
+    // Tags get medium weight
+    [Queryable]
+    [FullTextSearchable(Weight = 1.5)]
+    [Id(2)]
+    public string Tags { get; set; } = string.Empty;
+}
+```
+
+When searching, a match in the title (weight 2.0) will rank higher than a match in the body (weight 1.0).
+
+## Use Cases
+
+Full-text search is ideal for:
+
+- **Product catalogs** - Search by name, description, category
+- **User profiles** - Search by name, bio, interests
+- **Content management** - Search articles, posts, comments
+- **Document search** - Search by title, content, metadata
+
+## String.Contains vs Full-Text Search
+
+| Feature | `String.Contains` | Full-Text Search |
+|---------|-------------------|------------------|
+| Matching | Exact substring | Tokenized/normalized |
+| Case | Case-sensitive | Case-insensitive |
+| Stemming | No | Yes (e.g., "running" matches "run") |
+| Performance | Slower on large datasets | Optimized with indexes |
+| Ranking | No | Yes (by relevance) |
+
+Use `String.Contains` for exact substring matching:
+
+```csharp
+// Exact match - finds "alice@example.com"
+.Where(u => u.Email.Contains("@example.com"))
+```
+
+Use full-text search for natural language queries:
+
+```csharp
+// Full-text - finds products with "laptop", "laptops", etc.
+.Where(p => p.Name.Contains("laptop"))
+```
+
+## Example: Content Search
+
+```csharp
+[Searchable(typeof(IBlogPostGrain))]
+[GenerateSerializer]
+public class BlogPostState
+{
+    [Queryable]
+    [FullTextSearchable(Weight = 3.0)]  // Highest priority
+    [Id(0)]
+    public string Title { get; set; } = string.Empty;
+
+    [Queryable]
+    [FullTextSearchable(Weight = 1.0)]
+    [Id(1)]
+    public string Content { get; set; } = string.Empty;
+
+    [Queryable]
+    [FullTextSearchable(Weight = 2.0)]
+    [Id(2)]
+    public string Author { get; set; } = string.Empty;
+
+    [Queryable(Indexed = true)]
+    [Id(3)]
+    public string Category { get; set; } = string.Empty;
+
+    [Queryable]
+    [Id(4)]
+    public bool IsPublished { get; set; }
+}
+
+// Search for blog posts about "machine learning"
+var posts = await client.Search<IBlogPostGrain>()
+    .Where(p => p.Title.Contains("machine learning") || p.Content.Contains("machine learning"))
+    .Where(p => p.IsPublished == true)
+    .ToListAsync();
+```
+
+## Best Practices
+
+1. **Use appropriate weights** - Give titles and names higher weights than descriptions
+2. **Combine with filters** - Use full-text for text search + [Queryable] for filtering
+3. **Consider performance** - Full-text search is optimized, but large text fields still have overhead
+4. **Test with real data** - Ranking behavior depends on your actual content
+
+## PostgreSQL Full-Text Features
+
+Orleans.Search leverages PostgreSQL's text search:
+
+- **Tokenization** - Breaks text into searchable tokens
+- **Normalization** - Lowercase, removes accents
+- **Stemming** - Matches word variations (run/running/runs)
+- **Stop words** - Ignores common words (the, a, is)
+- **Ranking** - Orders results by relevance
+
+## Next Steps
+
+- [Query API](/query-api/search-client) - Learn how to execute search queries
+- [Examples](/examples/user-management) - See full-text search in action

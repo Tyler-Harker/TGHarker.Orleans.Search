@@ -1,0 +1,137 @@
+# [Searchable] Attribute
+
+The `[Searchable]` attribute marks a grain state class for search indexing and links it to its grain interface.
+
+## Usage
+
+```csharp
+[Searchable(typeof(IUserGrain))]
+[GenerateSerializer]
+public class UserState
+{
+    [Queryable]
+    [Id(0)]
+    public string Email { get; set; } = string.Empty;
+}
+```
+
+## Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `grainType` | `Type` | The grain interface this state belongs to (required) |
+
+## Requirements
+
+The grain interface must:
+
+1. Inherit from `IGrainWithStringKey`
+2. Be accessible from the state class
+
+```csharp
+// Grain interface - must use string key
+public interface IUserGrain : IGrainWithStringKey
+{
+    Task SetEmailAsync(string email);
+}
+
+// State class - linked via [Searchable]
+[Searchable(typeof(IUserGrain))]
+[GenerateSerializer]
+public class UserState
+{
+    [Queryable]
+    [Id(0)]
+    public string Email { get; set; } = string.Empty;
+}
+```
+
+## What It Does
+
+When you apply `[Searchable]` to a state class, the source generator creates:
+
+1. **Entity class** - An EF Core entity mirroring your queryable properties
+2. **Search provider** - Handles CRUD operations for the search index
+3. **Search model** - Enables type-safe LINQ queries
+4. **Query extensions** - Fluent API methods like `Where()`
+
+## Example
+
+```csharp
+// Define your grain interface
+public interface IProductGrain : IGrainWithStringKey
+{
+    Task SetDetailsAsync(string name, decimal price);
+    Task<string> GetNameAsync();
+}
+
+// Mark state as searchable
+[Searchable(typeof(IProductGrain))]
+[GenerateSerializer]
+public class ProductState
+{
+    [Queryable]
+    [FullTextSearchable(Weight = 2.0)]
+    [Id(0)]
+    public string Name { get; set; } = string.Empty;
+
+    [Queryable]
+    [Id(1)]
+    public decimal Price { get; set; }
+
+    [Queryable]
+    [Id(2)]
+    public bool InStock { get; set; }
+
+    // Not marked as [Queryable] - stored but not searchable
+    [Id(3)]
+    public string InternalNotes { get; set; } = string.Empty;
+}
+```
+
+## Generated Code
+
+For the `ProductState` example above, the generator creates:
+
+```csharp
+// Generated entity
+public class ProductStateEntity : ISearchEntity
+{
+    public string GrainId { get; set; }
+    public int Version { get; set; }
+    public DateTime LastUpdated { get; set; }
+
+    public string Name { get; set; }
+    public decimal Price { get; set; }
+    public bool InStock { get; set; }
+}
+
+// Generated search provider
+public class ProductStateSearchProvider : SearchProviderBase<IProductGrain, ProductState, ProductStateEntity>
+{
+    // State-to-entity mapping
+    // Query execution
+}
+```
+
+## Multiple Searchable States
+
+You can have multiple searchable states in your application:
+
+```csharp
+[Searchable(typeof(IUserGrain))]
+public class UserState { /* ... */ }
+
+[Searchable(typeof(IProductGrain))]
+public class ProductState { /* ... */ }
+
+[Searchable(typeof(IOrderGrain))]
+public class OrderState { /* ... */ }
+```
+
+Each generates its own entity, provider, and query extensions.
+
+## Next Steps
+
+- [Queryable Attribute](/core-concepts/queryable-attribute) - Configure which properties to index
+- [FullTextSearchable Attribute](/core-concepts/fulltext-search) - Enable full-text search

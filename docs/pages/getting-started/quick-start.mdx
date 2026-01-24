@@ -1,0 +1,140 @@
+# Quick Start
+
+Get Orleans.Search running in your application in four simple steps.
+
+## Step 1: Mark State as Searchable
+
+Add the `[Searchable]` attribute to your grain state class, and `[Queryable]` to properties you want to search.
+
+```csharp filename="UserState.cs"
+using TGHarker.Orleans.Search;
+
+[Searchable(typeof(IUserGrain))]
+[GenerateSerializer]
+public class UserState
+{
+    [Queryable]
+    [FullTextSearchable(Weight = 2.0)]
+    [Id(0)]
+    public string Email { get; set; } = string.Empty;
+
+    [Queryable]
+    [Id(1)]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [Queryable]
+    [Id(2)]
+    public bool IsActive { get; set; }
+}
+```
+
+**Key points:**
+- `[Searchable(typeof(IUserGrain))]` links the state to its grain interface
+- `[Queryable]` marks properties that can be searched
+- `[FullTextSearchable]` enables PostgreSQL full-text search with optional weighting
+- Only mark properties you need to search - unmarked properties are stored but not indexed
+
+## Step 2: Configure the Silo
+
+In your silo/host project, configure Orleans.Search with your existing grain storage.
+
+```csharp filename="Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.UseOrleans(siloBuilder =>
+{
+    siloBuilder.UseLocalhostClustering();
+
+    // Your existing grain storage (memory, Azure, SQL, etc.)
+    siloBuilder.AddMemoryGrainStorage("InnerStorage");
+
+    // Wrap with searchable storage
+    siloBuilder.AddSearchableGrainStorage("InnerStorage");
+});
+
+// Add Orleans.Search services
+builder.Services.AddOrleansSearch()
+    .UsePostgreSql("Host=localhost;Database=orleanssearch;Username=postgres;Password=postgres");
+
+var app = builder.Build();
+app.Run();
+```
+
+**Important:** `AddSearchableGrainStorage` wraps your existing storage provider. The first parameter is the name of your inner storage.
+
+## Step 3: Create Your Grain
+
+Implement your grain as usual. The search index updates automatically when you call `WriteStateAsync()`.
+
+```csharp filename="UserGrain.cs"
+public interface IUserGrain : IGrainWithStringKey
+{
+    Task SetInfoAsync(string email, string displayName, bool isActive);
+    Task<string> GetEmailAsync();
+}
+
+public class UserGrain : Grain, IUserGrain
+{
+    private readonly IPersistentState<UserState> _state;
+
+    public UserGrain(
+        [PersistentState("user", "InnerStorage")] IPersistentState<UserState> state)
+    {
+        _state = state;
+    }
+
+    public async Task SetInfoAsync(string email, string displayName, bool isActive)
+    {
+        _state.State.Email = email;
+        _state.State.DisplayName = displayName;
+        _state.State.IsActive = isActive;
+
+        // This automatically syncs to the search index
+        await _state.WriteStateAsync();
+    }
+
+    public Task<string> GetEmailAsync() => Task.FromResult(_state.State.Email);
+}
+```
+
+## Step 4: Query Your Grains
+
+Use `ISearchableClusterClient` to search for grains by their state properties.
+
+```csharp
+var client = serviceProvider.GetRequiredService<ISearchableClusterClient>();
+
+// Find user by exact email
+var user = await client.Search<IUserGrain>()
+    .Where(u => u.Email == "alice@example.com")
+    .FirstOrDefaultAsync();
+
+// Find users with email containing a domain
+var users = await client.Search<IUserGrain>()
+    .Where(u => u.Email.Contains("@example.com"))
+    .ToListAsync();
+
+// Find all active users
+var activeUsers = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .ToListAsync();
+
+// Count inactive users
+var inactiveCount = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == false)
+    .CountAsync();
+```
+
+## That's It!
+
+You now have full-text search capabilities for your Orleans grains. The source generator automatically creates:
+
+- Entity classes for EF Core
+- Search providers for each grain type
+- Extension methods for the fluent query API
+
+## Next Steps
+
+- [Core Concepts](/core-concepts/overview) - Understand how Orleans.Search works
+- [Query API](/query-api/search-client) - Learn all available query methods
+- [Examples](/examples/user-management) - See more real-world examples

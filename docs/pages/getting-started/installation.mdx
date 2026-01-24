@@ -1,0 +1,76 @@
+# Installation
+
+Install the Orleans.Search NuGet packages into your Orleans projects.
+
+## NuGet Packages
+
+Orleans.Search is distributed as two packages:
+
+| Package | Description |
+|---------|-------------|
+| `TGHarker.Orleans.Search` | Core library with attributes and source generator |
+| `TGHarker.Orleans.Search.PostgreSql` | PostgreSQL search provider |
+
+## Installation
+
+### Using .NET CLI
+
+```bash
+# In your grain state project (where your state classes are defined)
+dotnet add package TGHarker.Orleans.Search
+
+# In your silo/host project
+dotnet add package TGHarker.Orleans.Search.PostgreSql
+```
+
+### Using Package Manager
+
+```powershell
+# In your grain state project
+Install-Package TGHarker.Orleans.Search
+
+# In your silo/host project
+Install-Package TGHarker.Orleans.Search.PostgreSql
+```
+
+### Using PackageReference
+
+Add to your `.csproj` files:
+
+```xml
+<!-- Grain state project -->
+<PackageReference Include="TGHarker.Orleans.Search" Version="1.0.0" />
+
+<!-- Silo/host project -->
+<PackageReference Include="TGHarker.Orleans.Search.PostgreSql" Version="1.0.0" />
+```
+
+## Project Structure
+
+A typical Orleans.Search project structure:
+
+```
+MyApp/
+├── MyApp.Abstractions/          # Grain interfaces
+│   └── IUserGrain.cs
+├── MyApp.Grains/                # Grain implementations + state
+│   ├── UserGrain.cs
+│   └── UserState.cs             # Add TGHarker.Orleans.Search here
+└── MyApp.Silo/                  # Host/silo project
+    └── Program.cs               # Add TGHarker.Orleans.Search.PostgreSql here
+```
+
+## Verify Installation
+
+After installation, the source generator should automatically run during build. You can verify by:
+
+1. Building your project
+2. Checking for generated files in `obj/Debug/net10.0/generated/`
+
+If you have marked any state classes with `[Searchable]`, you should see generated files like:
+- `YourStateEntity.Generated.cs`
+- `YourStateSearchProvider.Generated.cs`
+
+## Next Steps
+
+Continue to [Quick Start](/getting-started/quick-start) to configure Orleans.Search in your application.

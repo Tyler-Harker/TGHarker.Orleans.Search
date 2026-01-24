@@ -1,0 +1,230 @@
+# Async Methods
+
+After building a query with `Where`, execute it with one of these async methods.
+
+## ToListAsync
+
+Returns all matching grains as a list.
+
+```csharp
+List<IUserGrain> users = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .ToListAsync();
+```
+
+**Returns:** `List<TGrain>` containing all matching grain references.
+
+**Use when:** You need all matching grains and will process them individually.
+
+```csharp
+// Get all active users and fetch their emails
+var activeUsers = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .ToListAsync();
+
+foreach (var user in activeUsers)
+{
+    var email = await user.GetEmailAsync();
+    Console.WriteLine(email);
+}
+```
+
+## FirstOrDefaultAsync
+
+Returns the first matching grain, or `null` if none match.
+
+```csharp
+IUserGrain? user = await client.Search<IUserGrain>()
+    .Where(u => u.Email == "alice@example.com")
+    .FirstOrDefaultAsync();
+
+if (user != null)
+{
+    var displayName = await user.GetDisplayNameAsync();
+}
+```
+
+**Returns:** `TGrain?` - the first matching grain or `null`.
+
+**Use when:** You expect zero or one match, or only need the first result.
+
+```csharp
+// Find user by unique email
+public async Task<IUserGrain?> FindByEmailAsync(string email)
+{
+    return await client.Search<IUserGrain>()
+        .Where(u => u.Email == email)
+        .FirstOrDefaultAsync();
+}
+```
+
+## FirstAsync
+
+Returns the first matching grain. Throws if no grains match.
+
+```csharp
+IUserGrain user = await client.Search<IUserGrain>()
+    .Where(u => u.Email == "alice@example.com")
+    .FirstAsync();
+```
+
+**Returns:** `TGrain` - the first matching grain.
+
+**Throws:** `InvalidOperationException` if no grains match.
+
+**Use when:** You expect at least one match and want an exception if there isn't.
+
+```csharp
+// Get admin user - throw if not found
+public async Task<IUserGrain> GetAdminAsync()
+{
+    return await client.Search<IUserGrain>()
+        .Where(u => u.Role == "admin")
+        .FirstAsync();
+}
+```
+
+## CountAsync
+
+Returns the number of matching grains.
+
+```csharp
+int count = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .CountAsync();
+
+Console.WriteLine($"Active users: {count}");
+```
+
+**Returns:** `int` - the count of matching grains.
+
+**Use when:** You only need to know how many grains match, not the grains themselves.
+
+```csharp
+// Count products by category
+public async Task<Dictionary<string, int>> GetCategoryCountsAsync()
+{
+    var categories = new[] { "electronics", "clothing", "books" };
+    var counts = new Dictionary<string, int>();
+
+    foreach (var category in categories)
+    {
+        counts[category] = await client.Search<IProductGrain>()
+            .Where(p => p.Category == category)
+            .CountAsync();
+    }
+
+    return counts;
+}
+```
+
+## AnyAsync
+
+Returns `true` if at least one grain matches.
+
+```csharp
+bool hasActiveUsers = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .AnyAsync();
+
+if (hasActiveUsers)
+{
+    Console.WriteLine("There are active users");
+}
+```
+
+**Returns:** `bool` - `true` if any grains match, `false` otherwise.
+
+**Use when:** You only need to know if matches exist, not how many or which ones.
+
+```csharp
+// Check if email is already taken
+public async Task<bool> IsEmailTakenAsync(string email)
+{
+    return await client.Search<IUserGrain>()
+        .Where(u => u.Email == email)
+        .AnyAsync();
+}
+```
+
+## Method Comparison
+
+| Method | Returns | Throws on Empty | Use Case |
+|--------|---------|-----------------|----------|
+| `ToListAsync()` | `List<TGrain>` | No (empty list) | Get all matches |
+| `FirstOrDefaultAsync()` | `TGrain?` | No (null) | Get first or null |
+| `FirstAsync()` | `TGrain` | Yes | Get first, expect match |
+| `CountAsync()` | `int` | No | Count matches |
+| `AnyAsync()` | `bool` | No | Check existence |
+
+## Performance Considerations
+
+1. **Use `AnyAsync()` over `CountAsync() > 0`**
+   - `AnyAsync()` can stop at the first match
+   - `CountAsync()` must count all matches
+
+2. **Use `FirstOrDefaultAsync()` over `ToListAsync().FirstOrDefault()`**
+   - `FirstOrDefaultAsync()` only fetches one record
+   - `ToListAsync()` fetches all matching records
+
+3. **Use `CountAsync()` when you only need the count**
+   - Don't fetch full grain references just to count them
+
+## Complete Example
+
+```csharp
+public class ProductCatalogService
+{
+    private readonly ISearchableClusterClient _client;
+
+    public ProductCatalogService(ISearchableClusterClient client)
+    {
+        _client = client;
+    }
+
+    // Get all products in a category
+    public async Task<List<IProductGrain>> GetByCategory(string category)
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.Category == category)
+            .ToListAsync();
+    }
+
+    // Find product by name
+    public async Task<IProductGrain?> FindByName(string name)
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.Name == name)
+            .FirstOrDefaultAsync();
+    }
+
+    // Get the first featured product (throws if none)
+    public async Task<IProductGrain> GetFeaturedProduct()
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.IsFeatured == true)
+            .FirstAsync();
+    }
+
+    // Count in-stock products
+    public async Task<int> CountInStock()
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.InStock == true)
+            .CountAsync();
+    }
+
+    // Check if category has products
+    public async Task<bool> CategoryHasProducts(string category)
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.Category == category)
+            .AnyAsync();
+    }
+}
+```
+
+## Next Steps
+
+- [Examples](/examples/user-management) - See complete usage examples
+- [API Reference](/api-reference/attributes) - Full API documentation

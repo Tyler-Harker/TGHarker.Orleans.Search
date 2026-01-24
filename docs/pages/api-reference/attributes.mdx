@@ -1,0 +1,230 @@
+# Attributes
+
+Orleans.Search provides three attributes for configuring searchable grain state.
+
+## SearchableAttribute
+
+Marks a grain state class for search indexing and links it to its grain interface.
+
+### Namespace
+
+```csharp
+TGHarker.Orleans.Search
+```
+
+### Signature
+
+```csharp
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+public class SearchableAttribute : Attribute
+{
+    public SearchableAttribute(Type grainType);
+    public Type GrainType { get; }
+}
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `grainType` | `Type` | The grain interface this state belongs to |
+
+### Requirements
+
+- The grain interface must inherit from `IGrainWithStringKey`
+- Only one `[Searchable]` attribute per class
+
+### Example
+
+```csharp
+[Searchable(typeof(IUserGrain))]
+[GenerateSerializer]
+public class UserState
+{
+    [Queryable]
+    [Id(0)]
+    public string Email { get; set; } = string.Empty;
+}
+```
+
+---
+
+## QueryableAttribute
+
+Marks a property for inclusion in the search index.
+
+### Namespace
+
+```csharp
+TGHarker.Orleans.Search
+```
+
+### Signature
+
+```csharp
+[AttributeUsage(AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
+public class QueryableAttribute : Attribute
+{
+    public QueryableAttribute();
+    public bool Indexed { get; set; }
+}
+```
+
+### Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Indexed` | `bool` | `false` | Create a database index for faster filtering |
+
+### Supported Types
+
+- `string`
+- `bool`
+- `int`, `long`, `short`, `byte`
+- `decimal`, `double`, `float`
+- `DateTime`, `DateTimeOffset`
+- `Guid`
+
+### Example
+
+```csharp
+[Searchable(typeof(IProductGrain))]
+public class ProductState
+{
+    [Queryable]
+    [Id(0)]
+    public string Name { get; set; } = string.Empty;
+
+    [Queryable(Indexed = true)]  // Creates database index
+    [Id(1)]
+    public string Category { get; set; } = string.Empty;
+
+    [Queryable]
+    [Id(2)]
+    public decimal Price { get; set; }
+}
+```
+
+---
+
+## FullTextSearchableAttribute
+
+Enables PostgreSQL full-text search on string properties.
+
+### Namespace
+
+```csharp
+TGHarker.Orleans.Search
+```
+
+### Signature
+
+```csharp
+[AttributeUsage(AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
+public class FullTextSearchableAttribute : Attribute
+{
+    public FullTextSearchableAttribute();
+    public double Weight { get; set; }
+}
+```
+
+### Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Weight` | `double` | `1.0` | Relevance weight for ranking results |
+
+### Supported Types
+
+- `string` only
+
+### Example
+
+```csharp
+[Searchable(typeof(IArticleGrain))]
+public class ArticleState
+{
+    [Queryable]
+    [FullTextSearchable(Weight = 3.0)]  // Highest priority
+    [Id(0)]
+    public string Title { get; set; } = string.Empty;
+
+    [Queryable]
+    [FullTextSearchable(Weight = 1.0)]  // Lower priority
+    [Id(1)]
+    public string Content { get; set; } = string.Empty;
+
+    [Queryable]
+    [FullTextSearchable(Weight = 2.0)]  // Medium priority
+    [Id(2)]
+    public string Tags { get; set; } = string.Empty;
+}
+```
+
+---
+
+## Attribute Combinations
+
+Common patterns for combining attributes:
+
+### Basic Searchable Property
+
+```csharp
+[Queryable]
+public string Email { get; set; }
+```
+
+### Indexed Filter Property
+
+```csharp
+[Queryable(Indexed = true)]
+public string Status { get; set; }
+```
+
+### Full-Text Search Property
+
+```csharp
+[Queryable]
+[FullTextSearchable(Weight = 2.0)]
+public string Title { get; set; }
+```
+
+### Complete Example
+
+```csharp
+[Searchable(typeof(IProductGrain))]
+[GenerateSerializer]
+public class ProductState
+{
+    // Full-text search with high weight
+    [Queryable]
+    [FullTextSearchable(Weight = 2.0)]
+    [Id(0)]
+    public string Name { get; set; } = string.Empty;
+
+    // Indexed for fast filtering
+    [Queryable(Indexed = true)]
+    [Id(1)]
+    public string Category { get; set; } = string.Empty;
+
+    // Regular queryable
+    [Queryable]
+    [Id(2)]
+    public decimal Price { get; set; }
+
+    // Indexed boolean filter
+    [Queryable(Indexed = true)]
+    [Id(3)]
+    public bool InStock { get; set; }
+
+    // Full-text with lower weight
+    [Queryable]
+    [FullTextSearchable(Weight = 1.0)]
+    [Id(4)]
+    public string Description { get; set; } = string.Empty;
+
+    // Not queryable - stored but not searchable
+    [Id(5)]
+    public string InternalSku { get; set; } = string.Empty;
+}
+```

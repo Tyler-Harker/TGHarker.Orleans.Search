@@ -1,0 +1,199 @@
+# Where Expressions
+
+The `Where` method accepts a lambda expression that filters grains by their state properties.
+
+## Basic Syntax
+
+```csharp
+client.Search<TGrain>()
+    .Where(x => /* predicate */)
+```
+
+## Equality
+
+Compare properties to values with `==`:
+
+```csharp
+// String equality
+.Where(u => u.Email == "alice@example.com")
+
+// Boolean equality
+.Where(u => u.IsActive == true)
+
+// Numeric equality
+.Where(p => p.Price == 99.99m)
+```
+
+## String Operations
+
+### Contains
+
+```csharp
+// Case-sensitive substring match
+.Where(u => u.Email.Contains("@example.com"))
+.Where(p => p.Name.Contains("laptop"))
+```
+
+### StartsWith
+
+```csharp
+.Where(u => u.Email.StartsWith("admin"))
+.Where(p => p.Category.StartsWith("elect"))
+```
+
+### EndsWith
+
+```csharp
+.Where(u => u.Email.EndsWith(".com"))
+.Where(p => p.Name.EndsWith("Pro"))
+```
+
+## Numeric Comparisons
+
+### Greater Than / Less Than
+
+```csharp
+.Where(p => p.Price > 100.00m)
+.Where(p => p.Price < 500.00m)
+```
+
+### Greater Than or Equal / Less Than or Equal
+
+```csharp
+.Where(p => p.Price >= 100.00m)
+.Where(p => p.Price <= 500.00m)
+```
+
+### Range Queries
+
+```csharp
+.Where(p => p.Price >= 100.00m && p.Price <= 500.00m)
+```
+
+## DateTime Comparisons
+
+```csharp
+// Orders in the last 7 days
+.Where(o => o.CreatedAt > DateTime.UtcNow.AddDays(-7))
+
+// Orders in a date range
+.Where(o => o.CreatedAt >= startDate && o.CreatedAt <= endDate)
+```
+
+## Boolean Filters
+
+```csharp
+// Active users
+.Where(u => u.IsActive == true)
+
+// Out of stock products
+.Where(p => p.InStock == false)
+```
+
+## Logical Operators
+
+### AND (&&)
+
+Both conditions must be true:
+
+```csharp
+.Where(p => p.InStock == true && p.Price < 100.00m)
+.Where(u => u.IsActive == true && u.Email.Contains("@example.com"))
+```
+
+### OR (||)
+
+At least one condition must be true:
+
+```csharp
+.Where(u => u.Status == "active" || u.Status == "pending")
+.Where(p => p.Category == "electronics" || p.Category == "computers")
+```
+
+### Complex Combinations
+
+```csharp
+// Products that are either:
+// - In stock and under $100
+// - In the "clearance" category
+.Where(p =>
+    (p.InStock == true && p.Price < 100.00m) ||
+    p.Category == "clearance"
+)
+
+// Users who are active AND either admin or moderator
+.Where(u =>
+    u.IsActive == true &&
+    (u.Role == "admin" || u.Role == "moderator")
+)
+```
+
+## Chaining Multiple Where Clauses
+
+Multiple `Where` calls are combined with AND:
+
+```csharp
+// These are equivalent:
+.Where(p => p.InStock == true && p.Price < 100.00m)
+
+.Where(p => p.InStock == true)
+.Where(p => p.Price < 100.00m)
+```
+
+## Variables in Expressions
+
+You can use local variables in expressions:
+
+```csharp
+string domain = "@example.com";
+var users = await client.Search<IUserGrain>()
+    .Where(u => u.Email.Contains(domain))
+    .ToListAsync();
+
+decimal minPrice = 100.00m;
+decimal maxPrice = 500.00m;
+var products = await client.Search<IProductGrain>()
+    .Where(p => p.Price >= minPrice && p.Price <= maxPrice)
+    .ToListAsync();
+```
+
+## Null Handling
+
+Check for null values:
+
+```csharp
+// Find users without a display name
+.Where(u => u.DisplayName == null)
+
+// Find users with a display name
+.Where(u => u.DisplayName != null)
+```
+
+## Supported Operators Summary
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `==` | Equality | `u.Email == "test@example.com"` |
+| `!=` | Not equal | `u.Status != "deleted"` |
+| `>` | Greater than | `p.Price > 100` |
+| `>=` | Greater than or equal | `p.Price >= 100` |
+| `<` | Less than | `p.Price < 500` |
+| `<=` | Less than or equal | `p.Price <= 500` |
+| `&&` | Logical AND | `p.InStock == true && p.Price < 100` |
+| `\|\|` | Logical OR | `u.Role == "admin" \|\| u.Role == "mod"` |
+| `.Contains()` | Substring | `u.Email.Contains("@example")` |
+| `.StartsWith()` | Prefix | `u.Name.StartsWith("John")` |
+| `.EndsWith()` | Suffix | `u.Email.EndsWith(".com")` |
+
+## Limitations
+
+Currently **not supported**:
+
+- `OrderBy` / `OrderByDescending` (planned for v1.1)
+- `Skip` / `Take` pagination (planned for v1.1)
+- `In` / collection contains
+- Regular expressions
+
+## Next Steps
+
+- [Async Methods](/query-api/async-methods) - Execute queries and get results

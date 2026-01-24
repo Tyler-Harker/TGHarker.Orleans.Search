@@ -1,0 +1,136 @@
+# Silo Setup
+
+Configure your Orleans silo to enable search indexing for grain state.
+
+## Basic Configuration
+
+```csharp filename="Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.UseOrleans(siloBuilder =>
+{
+    // Your clustering configuration
+    siloBuilder.UseLocalhostClustering();
+
+    // 1. Add your inner storage (this stores actual grain state)
+    siloBuilder.AddMemoryGrainStorage("InnerStorage");
+
+    // 2. Wrap with searchable storage
+    siloBuilder.AddSearchableGrainStorage("InnerStorage");
+});
+
+// 3. Add Orleans.Search services
+builder.Services.AddOrleansSearch()
+    .UsePostgreSql("Host=localhost;Database=orleanssearch;Username=postgres;Password=postgres");
+
+var app = builder.Build();
+app.Run();
+```
+
+## Understanding Searchable Storage
+
+`AddSearchableGrainStorage` creates a decorator around your existing storage:
+
+```
+Grain WriteStateAsync()
+    |
+    v
+SearchableGrainStorage (decorator)
+    |-- Writes to inner storage (your actual persistence)
+    |-- Syncs to PostgreSQL search index (fire-and-forget)
+```
+
+The decorator:
+- **Intercepts writes** - Captures state changes when grains persist
+- **Delegates to inner storage** - Your grain state is stored as usual
+- **Syncs asynchronously** - Updates the search index without blocking
+
+## Multiple Storage Providers
+
+If you use multiple storage providers, wrap each one that has searchable grains:
+
+```csharp
+builder.UseOrleans(siloBuilder =>
+{
+    // Users stored in memory
+    siloBuilder.AddMemoryGrainStorage("UserStorage");
+    siloBuilder.AddSearchableGrainStorage("UserStorage");
+
+    // Products stored in Azure Table Storage
+    siloBuilder.AddAzureTableGrainStorage("ProductStorage", options =>
+    {
+        options.ConfigureTableServiceClient(connectionString);
+    });
+    siloBuilder.AddSearchableGrainStorage("ProductStorage");
+
+    // Orders stored in PostgreSQL (different from search index)
+    siloBuilder.AddAdoNetGrainStorage("OrderStorage", options =>
+    {
+        options.Invariant = "Npgsql";
+        options.ConnectionString = orderDbConnection;
+    });
+    siloBuilder.AddSearchableGrainStorage("OrderStorage");
+});
+```
+
+## Storage Provider Compatibility
+
+Orleans.Search works with any `IGrainStorage` implementation:
+
+| Provider | Compatible |
+|----------|------------|
+| Memory | Yes |
+| Azure Blob Storage | Yes |
+| Azure Table Storage | Yes |
+| Amazon DynamoDB | Yes |
+| ADO.NET (SQL Server, PostgreSQL, MySQL) | Yes |
+| Redis | Yes |
+| Custom implementations | Yes |
+
+## Grain Configuration
+
+Ensure your grains reference the inner storage name (not the searchable wrapper):
+
+```csharp
+public class UserGrain : Grain, IUserGrain
+{
+    private readonly IPersistentState<UserState> _state;
+
+    public UserGrain(
+        // Use the inner storage name
+        [PersistentState("user", "InnerStorage")] IPersistentState<UserState> state)
+    {
+        _state = state;
+    }
+}
+```
+
+## Production Configuration
+
+For production environments:
+
+```csharp
+builder.UseOrleans(siloBuilder =>
+{
+    // Use proper clustering (Azure, Kubernetes, etc.)
+    siloBuilder.UseAzureStorageClustering(options =>
+    {
+        options.ConfigureBlobServiceClient(clusterConnectionString);
+    });
+
+    // Use durable storage
+    siloBuilder.AddAzureBlobGrainStorage("GrainStorage", options =>
+    {
+        options.ConfigureBlobServiceClient(storageConnectionString);
+    });
+    siloBuilder.AddSearchableGrainStorage("GrainStorage");
+});
+
+builder.Services.AddOrleansSearch()
+    .UsePostgreSql(configuration.GetConnectionString("SearchIndex"));
+```
+
+## Next Steps
+
+- [Client Setup](/configuration/client-setup) - Configure the search client
+- [PostgreSQL](/configuration/postgresql) - Database configuration options

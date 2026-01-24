@@ -1,0 +1,169 @@
+# Client Setup
+
+Configure your application to use `ISearchableClusterClient` for querying grains by their state.
+
+## Basic Configuration
+
+The search client is configured alongside your Orleans services:
+
+```csharp filename="Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+
+// Configure Orleans (silo or client)
+builder.UseOrleans(siloBuilder =>
+{
+    siloBuilder.UseLocalhostClustering();
+    siloBuilder.AddMemoryGrainStorage("InnerStorage");
+    siloBuilder.AddSearchableGrainStorage("InnerStorage");
+});
+
+// Add Orleans.Search - this registers ISearchableClusterClient
+builder.Services.AddOrleansSearch()
+    .UsePostgreSql("Host=localhost;Database=orleanssearch;Username=postgres;Password=postgres");
+
+var app = builder.Build();
+```
+
+## Using ISearchableClusterClient
+
+Inject `ISearchableClusterClient` wherever you need to search for grains:
+
+```csharp
+public class UserService
+{
+    private readonly ISearchableClusterClient _client;
+
+    public UserService(ISearchableClusterClient client)
+    {
+        _client = client;
+    }
+
+    public async Task<IUserGrain?> FindByEmailAsync(string email)
+    {
+        return await _client.Search<IUserGrain>()
+            .Where(u => u.Email == email)
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<List<IUserGrain>> GetActiveUsersAsync()
+    {
+        return await _client.Search<IUserGrain>()
+            .Where(u => u.IsActive == true)
+            .ToListAsync();
+    }
+}
+```
+
+## In Controllers
+
+```csharp
+[ApiController]
+[Route("api/[controller]")]
+public class UsersController : ControllerBase
+{
+    private readonly ISearchableClusterClient _client;
+
+    public UsersController(ISearchableClusterClient client)
+    {
+        _client = client;
+    }
+
+    [HttpGet("search")]
+    public async Task<IActionResult> Search([FromQuery] string email)
+    {
+        var users = await _client.Search<IUserGrain>()
+            .Where(u => u.Email.Contains(email))
+            .ToListAsync();
+
+        var results = new List<object>();
+        foreach (var user in users)
+        {
+            results.Add(new
+            {
+                Id = user.GetPrimaryKeyString(),
+                Email = await user.GetEmailAsync()
+            });
+        }
+
+        return Ok(results);
+    }
+}
+```
+
+## In Minimal APIs
+
+```csharp
+app.MapGet("/api/users/search", async (
+    string email,
+    ISearchableClusterClient client) =>
+{
+    var users = await client.Search<IUserGrain>()
+        .Where(u => u.Email.Contains(email))
+        .ToListAsync();
+
+    return Results.Ok(users.Select(u => u.GetPrimaryKeyString()));
+});
+```
+
+## Client-Only Applications
+
+If you're building a client that connects to an Orleans cluster (not hosting a silo):
+
+```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+// Configure Orleans client
+builder.UseOrleansClient(clientBuilder =>
+{
+    clientBuilder.UseLocalhostClustering();
+});
+
+// Add search services
+builder.Services.AddOrleansSearch()
+    .UsePostgreSql("Host=localhost;Database=orleanssearch;Username=postgres;Password=postgres");
+
+var host = builder.Build();
+
+// Get the searchable client
+var client = host.Services.GetRequiredService<ISearchableClusterClient>();
+
+// Search for grains
+var users = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .ToListAsync();
+```
+
+## IClusterClient Compatibility
+
+`ISearchableClusterClient` extends `IClusterClient`, so you can use it for all grain operations:
+
+```csharp
+public class UserService
+{
+    private readonly ISearchableClusterClient _client;
+
+    public UserService(ISearchableClusterClient client)
+    {
+        _client = client;
+    }
+
+    // Get a specific grain by ID (standard Orleans)
+    public IUserGrain GetUser(string id)
+    {
+        return _client.GetGrain<IUserGrain>(id);
+    }
+
+    // Search for grains by state (Orleans.Search)
+    public async Task<List<IUserGrain>> SearchUsersAsync(string emailDomain)
+    {
+        return await _client.Search<IUserGrain>()
+            .Where(u => u.Email.Contains(emailDomain))
+            .ToListAsync();
+    }
+}
+```
+
+## Next Steps
+
+- [PostgreSQL](/configuration/postgresql) - Database connection options
+- [Query API](/query-api/search-client) - Available query methods

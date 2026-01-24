@@ -1,0 +1,273 @@
+# User Management Example
+
+A complete example of using Orleans.Search for user management with searchable profiles.
+
+## Define the Grain Interface
+
+```csharp filename="IUserGrain.cs"
+public interface IUserGrain : IGrainWithStringKey
+{
+    Task SetInfoAsync(string email, string displayName, bool isActive);
+    Task<string> GetEmailAsync();
+    Task<string> GetDisplayNameAsync();
+    Task<bool> IsActiveAsync();
+    Task DeactivateAsync();
+}
+```
+
+## Define the Searchable State
+
+```csharp filename="UserState.cs"
+using TGHarker.Orleans.Search;
+
+[Searchable(typeof(IUserGrain))]
+[GenerateSerializer]
+public class UserState
+{
+    [Queryable]
+    [FullTextSearchable(Weight = 2.0)]
+    [Id(0)]
+    public string Email { get; set; } = string.Empty;
+
+    [Queryable]
+    [FullTextSearchable(Weight = 1.5)]
+    [Id(1)]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [Queryable(Indexed = true)]
+    [Id(2)]
+    public bool IsActive { get; set; } = true;
+
+    [Id(3)]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [Id(4)]
+    public DateTime? LastLoginAt { get; set; }
+}
+```
+
+## Implement the Grain
+
+```csharp filename="UserGrain.cs"
+public class UserGrain : Grain, IUserGrain
+{
+    private readonly IPersistentState<UserState> _state;
+
+    public UserGrain(
+        [PersistentState("user", "UserStorage")] IPersistentState<UserState> state)
+    {
+        _state = state;
+    }
+
+    public async Task SetInfoAsync(string email, string displayName, bool isActive)
+    {
+        _state.State.Email = email;
+        _state.State.DisplayName = displayName;
+        _state.State.IsActive = isActive;
+        await _state.WriteStateAsync();
+    }
+
+    public Task<string> GetEmailAsync() => Task.FromResult(_state.State.Email);
+
+    public Task<string> GetDisplayNameAsync() => Task.FromResult(_state.State.DisplayName);
+
+    public Task<bool> IsActiveAsync() => Task.FromResult(_state.State.IsActive);
+
+    public async Task DeactivateAsync()
+    {
+        _state.State.IsActive = false;
+        await _state.WriteStateAsync();
+    }
+}
+```
+
+## Configure the Silo
+
+```csharp filename="Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.UseOrleans(siloBuilder =>
+{
+    siloBuilder.UseLocalhostClustering();
+    siloBuilder.AddMemoryGrainStorage("UserStorage");
+    siloBuilder.AddSearchableGrainStorage("UserStorage");
+});
+
+builder.Services.AddOrleansSearch()
+    .UsePostgreSql("Host=localhost;Database=orleanssearch;Username=postgres;Password=postgres");
+
+var app = builder.Build();
+```
+
+## User Service
+
+```csharp filename="UserService.cs"
+public class UserService
+{
+    private readonly ISearchableClusterClient _client;
+
+    public UserService(ISearchableClusterClient client)
+    {
+        _client = client;
+    }
+
+    // Create a new user
+    public async Task<IUserGrain> CreateUserAsync(string userId, string email, string displayName)
+    {
+        var grain = _client.GetGrain<IUserGrain>(userId);
+        await grain.SetInfoAsync(email, displayName, true);
+        return grain;
+    }
+
+    // Find user by email
+    public async Task<IUserGrain?> FindByEmailAsync(string email)
+    {
+        return await _client.Search<IUserGrain>()
+            .Where(u => u.Email == email)
+            .FirstOrDefaultAsync();
+    }
+
+    // Search users by email domain
+    public async Task<List<IUserGrain>> FindByEmailDomainAsync(string domain)
+    {
+        return await _client.Search<IUserGrain>()
+            .Where(u => u.Email.Contains(domain))
+            .ToListAsync();
+    }
+
+    // Get all active users
+    public async Task<List<IUserGrain>> GetActiveUsersAsync()
+    {
+        return await _client.Search<IUserGrain>()
+            .Where(u => u.IsActive == true)
+            .ToListAsync();
+    }
+
+    // Get all inactive users
+    public async Task<List<IUserGrain>> GetInactiveUsersAsync()
+    {
+        return await _client.Search<IUserGrain>()
+            .Where(u => u.IsActive == false)
+            .ToListAsync();
+    }
+
+    // Count active users
+    public async Task<int> CountActiveUsersAsync()
+    {
+        return await _client.Search<IUserGrain>()
+            .Where(u => u.IsActive == true)
+            .CountAsync();
+    }
+
+    // Check if email is taken
+    public async Task<bool> IsEmailTakenAsync(string email)
+    {
+        return await _client.Search<IUserGrain>()
+            .Where(u => u.Email == email)
+            .AnyAsync();
+    }
+
+    // Search by display name
+    public async Task<List<IUserGrain>> SearchByNameAsync(string searchTerm)
+    {
+        return await _client.Search<IUserGrain>()
+            .Where(u => u.DisplayName.Contains(searchTerm))
+            .ToListAsync();
+    }
+}
+```
+
+## API Endpoints
+
+```csharp filename="Program.cs (endpoints)"
+app.MapGet("/api/users/search", async (
+    string? email,
+    string? name,
+    bool? active,
+    UserService userService) =>
+{
+    if (!string.IsNullOrEmpty(email))
+    {
+        var user = await userService.FindByEmailAsync(email);
+        return user != null
+            ? Results.Ok(new { id = user.GetPrimaryKeyString(), email = await user.GetEmailAsync() })
+            : Results.NotFound();
+    }
+
+    if (!string.IsNullOrEmpty(name))
+    {
+        var users = await userService.SearchByNameAsync(name);
+        var results = new List<object>();
+        foreach (var user in users)
+        {
+            results.Add(new
+            {
+                id = user.GetPrimaryKeyString(),
+                email = await user.GetEmailAsync(),
+                displayName = await user.GetDisplayNameAsync()
+            });
+        }
+        return Results.Ok(results);
+    }
+
+    if (active.HasValue)
+    {
+        var users = active.Value
+            ? await userService.GetActiveUsersAsync()
+            : await userService.GetInactiveUsersAsync();
+
+        return Results.Ok(users.Select(u => u.GetPrimaryKeyString()));
+    }
+
+    return Results.BadRequest("Provide email, name, or active parameter");
+});
+
+app.MapPost("/api/users", async (
+    CreateUserRequest request,
+    UserService userService) =>
+{
+    if (await userService.IsEmailTakenAsync(request.Email))
+    {
+        return Results.Conflict("Email already taken");
+    }
+
+    var userId = Guid.NewGuid().ToString();
+    var user = await userService.CreateUserAsync(userId, request.Email, request.DisplayName);
+
+    return Results.Created($"/api/users/{userId}", new { id = userId });
+});
+
+record CreateUserRequest(string Email, string DisplayName);
+```
+
+## Usage Examples
+
+```csharp
+// Create users
+await userService.CreateUserAsync("user-1", "alice@example.com", "Alice Johnson");
+await userService.CreateUserAsync("user-2", "bob@example.com", "Bob Smith");
+await userService.CreateUserAsync("user-3", "charlie@other.com", "Charlie Brown");
+
+// Find by exact email
+var alice = await userService.FindByEmailAsync("alice@example.com");
+
+// Find by email domain
+var exampleUsers = await userService.FindByEmailDomainAsync("@example.com");
+// Returns: alice, bob
+
+// Search by name
+var results = await userService.SearchByNameAsync("John");
+// Returns: alice (Alice Johnson)
+
+// Count active users
+var activeCount = await userService.CountActiveUsersAsync();
+
+// Check email availability
+var isTaken = await userService.IsEmailTakenAsync("alice@example.com");
+// Returns: true
+```
+
+## Next Steps
+
+- [E-Commerce Products](/examples/ecommerce-products) - Product catalog example
+- [Order Tracking](/examples/order-tracking) - Order management example

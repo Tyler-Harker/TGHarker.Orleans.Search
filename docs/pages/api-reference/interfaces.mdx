@@ -1,0 +1,228 @@
+# Interfaces
+
+Orleans.Search provides several interfaces for search functionality.
+
+## ISearchableClusterClient
+
+The main interface for searching grains by their state properties. Extends Orleans `IClusterClient`.
+
+### Namespace
+
+```csharp
+TGHarker.Orleans.Search
+```
+
+### Signature
+
+```csharp
+public interface ISearchableClusterClient : IClusterClient
+{
+    IOrleansQueryable<TGrain> Search<TGrain>() where TGrain : IGrain;
+}
+```
+
+### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `Search<TGrain>()` | `IOrleansQueryable<TGrain>` | Start a query for a specific grain type |
+
+### Registration
+
+Registered automatically when you call `AddOrleansSearch()`:
+
+```csharp
+builder.Services.AddOrleansSearch()
+    .UsePostgreSql(connectionString);
+```
+
+### Usage
+
+```csharp
+public class MyService
+{
+    private readonly ISearchableClusterClient _client;
+
+    public MyService(ISearchableClusterClient client)
+    {
+        _client = client;
+    }
+
+    public async Task<IUserGrain?> FindUserAsync(string email)
+    {
+        return await _client.Search<IUserGrain>()
+            .Where(u => u.Email == email)
+            .FirstOrDefaultAsync();
+    }
+}
+```
+
+### IClusterClient Compatibility
+
+Since `ISearchableClusterClient` extends `IClusterClient`, you can use it for standard grain operations:
+
+```csharp
+// Get grain by ID (standard Orleans)
+var user = _client.GetGrain<IUserGrain>("user-123");
+
+// Search grains by state (Orleans.Search)
+var users = await _client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .ToListAsync();
+```
+
+---
+
+## ISearchProvider
+
+Interface for search index operations. Implemented by generated providers.
+
+### Namespace
+
+```csharp
+TGHarker.Orleans.Search
+```
+
+### Signature
+
+```csharp
+public interface ISearchProvider<TGrain, TState>
+    where TGrain : IGrain
+{
+    Task UpsertAsync(string grainId, TState state, int version);
+    Task DeleteAsync(string grainId);
+    Task<List<string>> QueryAsync();
+    Task<List<string>> QueryWithFilterAsync(Expression<Func<TState, bool>> predicate);
+    Task<int> CountAsync(Expression<Func<TState, bool>>? predicate = null);
+    Task<bool> AnyAsync(Expression<Func<TState, bool>>? predicate = null);
+}
+```
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `UpsertAsync` | Insert or update a grain's state in the search index |
+| `DeleteAsync` | Remove a grain from the search index |
+| `QueryAsync` | Get all grain IDs |
+| `QueryWithFilterAsync` | Get grain IDs matching a predicate |
+| `CountAsync` | Count grains matching a predicate |
+| `AnyAsync` | Check if any grains match a predicate |
+
+### Generated Implementation
+
+The source generator creates an implementation for each `[Searchable]` state class:
+
+```csharp
+// Generated for UserState
+public class UserStateSearchProvider : SearchProviderBase<IUserGrain, UserState, UserStateEntity>,
+    ISearchProvider<IUserGrain, UserState>
+{
+    // Implementation generated at compile time
+}
+```
+
+---
+
+## ISearchEntity
+
+Base interface for generated entity classes.
+
+### Namespace
+
+```csharp
+TGHarker.Orleans.Search
+```
+
+### Signature
+
+```csharp
+public interface ISearchEntity
+{
+    string GrainId { get; set; }
+    int Version { get; set; }
+    DateTime LastUpdated { get; set; }
+}
+```
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `GrainId` | `string` | The Orleans grain ID |
+| `Version` | `int` | Version number for optimistic concurrency |
+| `LastUpdated` | `DateTime` | Timestamp of last update |
+
+### Generated Implementation
+
+```csharp
+// Generated for UserState
+public class UserStateEntity : ISearchEntity
+{
+    public string GrainId { get; set; }
+    public int Version { get; set; }
+    public DateTime LastUpdated { get; set; }
+
+    // Queryable properties from UserState
+    public string Email { get; set; }
+    public string DisplayName { get; set; }
+    public bool IsActive { get; set; }
+}
+```
+
+---
+
+## ISearchModel
+
+Marker interface linking search models to grain types.
+
+### Namespace
+
+```csharp
+TGHarker.Orleans.Search
+```
+
+### Signature
+
+```csharp
+public interface ISearchModel<TGrain> where TGrain : IGrain
+{
+}
+```
+
+### Generated Implementation
+
+```csharp
+// Generated for UserState
+public class UserStateSearchModel : ISearchModel<IUserGrain>
+{
+    public string Email { get; set; }
+    public string DisplayName { get; set; }
+    public bool IsActive { get; set; }
+}
+```
+
+---
+
+## IOrleansQueryable
+
+Queryable interface for Orleans grain queries.
+
+### Namespace
+
+```csharp
+TGHarker.Orleans.Search
+```
+
+### Signature
+
+```csharp
+public interface IOrleansQueryable<TGrain> where TGrain : IGrain
+{
+    // Query methods added via extension methods
+}
+```
+
+### Extension Methods
+
+See [Extension Methods](/api-reference/extension-methods) for available methods.

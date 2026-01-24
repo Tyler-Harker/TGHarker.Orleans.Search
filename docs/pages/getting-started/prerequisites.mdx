@@ -1,0 +1,59 @@
+# Prerequisites
+
+Before using Orleans.Search, ensure your environment meets the following requirements.
+
+## Runtime Requirements
+
+| Requirement | Version |
+|-------------|---------|
+| .NET | 10.0 or later |
+| Microsoft Orleans | 10.0 or later |
+| PostgreSQL | 12 or later |
+| Entity Framework Core | 9.0 or later |
+
+## PostgreSQL Setup
+
+Orleans.Search uses PostgreSQL as its search index backend. You'll need a running PostgreSQL instance.
+
+### Using Docker
+
+The quickest way to get PostgreSQL running locally:
+
+```bash
+docker run -d \
+  --name orleans-search-postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=orleanssearch \
+  -p 5432:5432 \
+  postgres:16
+```
+
+### Using an Existing Instance
+
+If you have an existing PostgreSQL installation, create a database for Orleans.Search:
+
+```sql
+CREATE DATABASE orleanssearch;
+```
+
+## Orleans Project
+
+Orleans.Search integrates with an existing Orleans application. You should have:
+
+1. An Orleans silo project (host)
+2. Grain interfaces project
+3. Grain implementations project
+
+If you're new to Orleans, see the [Orleans documentation](https://learn.microsoft.com/en-us/dotnet/orleans/) to get started.
+
+## Source Generators
+
+Orleans.Search uses Roslyn source generators to generate code at compile time. Ensure your project:
+
+- Targets .NET 10.0 or later
+- Has `<LangVersion>latest</LangVersion>` in your project file (recommended)
+
+## Next Steps
+
+Once your prerequisites are in place, proceed to [Installation](/getting-started/installation).

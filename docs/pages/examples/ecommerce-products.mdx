@@ -1,0 +1,321 @@
+# E-Commerce Products Example
+
+A complete example of using Orleans.Search for a product catalog with category filtering and price range queries.
+
+## Define the Grain Interface
+
+```csharp filename="IProductGrain.cs"
+public interface IProductGrain : IGrainWithStringKey
+{
+    Task SetDetailsAsync(string name, string category, decimal price, bool inStock);
+    Task<ProductInfo> GetInfoAsync();
+    Task UpdateStockAsync(bool inStock);
+    Task UpdatePriceAsync(decimal price);
+}
+
+public record ProductInfo(string Name, string Category, decimal Price, bool InStock);
+```
+
+## Define the Searchable State
+
+```csharp filename="ProductState.cs"
+using TGHarker.Orleans.Search;
+
+[Searchable(typeof(IProductGrain))]
+[GenerateSerializer]
+public class ProductState
+{
+    [Queryable]
+    [FullTextSearchable(Weight = 2.0)]
+    [Id(0)]
+    public string Name { get; set; } = string.Empty;
+
+    [Queryable(Indexed = true)]
+    [Id(1)]
+    public string Category { get; set; } = string.Empty;
+
+    [Queryable]
+    [Id(2)]
+    public decimal Price { get; set; }
+
+    [Queryable(Indexed = true)]
+    [Id(3)]
+    public bool InStock { get; set; } = true;
+
+    [FullTextSearchable(Weight = 1.0)]
+    [Id(4)]
+    public string Description { get; set; } = string.Empty;
+
+    [Id(5)]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [Id(6)]
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+```
+
+## Implement the Grain
+
+```csharp filename="ProductGrain.cs"
+public class ProductGrain : Grain, IProductGrain
+{
+    private readonly IPersistentState<ProductState> _state;
+
+    public ProductGrain(
+        [PersistentState("product", "ProductStorage")] IPersistentState<ProductState> state)
+    {
+        _state = state;
+    }
+
+    public async Task SetDetailsAsync(string name, string category, decimal price, bool inStock)
+    {
+        _state.State.Name = name;
+        _state.State.Category = category;
+        _state.State.Price = price;
+        _state.State.InStock = inStock;
+        _state.State.UpdatedAt = DateTime.UtcNow;
+        await _state.WriteStateAsync();
+    }
+
+    public Task<ProductInfo> GetInfoAsync() => Task.FromResult(new ProductInfo(
+        _state.State.Name,
+        _state.State.Category,
+        _state.State.Price,
+        _state.State.InStock
+    ));
+
+    public async Task UpdateStockAsync(bool inStock)
+    {
+        _state.State.InStock = inStock;
+        _state.State.UpdatedAt = DateTime.UtcNow;
+        await _state.WriteStateAsync();
+    }
+
+    public async Task UpdatePriceAsync(decimal price)
+    {
+        _state.State.Price = price;
+        _state.State.UpdatedAt = DateTime.UtcNow;
+        await _state.WriteStateAsync();
+    }
+}
+```
+
+## Product Catalog Service
+
+```csharp filename="ProductCatalogService.cs"
+public class ProductCatalogService
+{
+    private readonly ISearchableClusterClient _client;
+
+    public ProductCatalogService(ISearchableClusterClient client)
+    {
+        _client = client;
+    }
+
+    // Search products by name
+    public async Task<List<IProductGrain>> SearchByNameAsync(string searchTerm)
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.Name.Contains(searchTerm))
+            .ToListAsync();
+    }
+
+    // Get products by category
+    public async Task<List<IProductGrain>> GetByCategoryAsync(string category)
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.Category == category)
+            .ToListAsync();
+    }
+
+    // Get products in a price range
+    public async Task<List<IProductGrain>> GetByPriceRangeAsync(decimal minPrice, decimal maxPrice)
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.Price >= minPrice && p.Price <= maxPrice)
+            .ToListAsync();
+    }
+
+    // Get in-stock products
+    public async Task<List<IProductGrain>> GetInStockAsync()
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.InStock == true)
+            .ToListAsync();
+    }
+
+    // Get out-of-stock products
+    public async Task<List<IProductGrain>> GetOutOfStockAsync()
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.InStock == false)
+            .ToListAsync();
+    }
+
+    // Combined filter: category + in-stock + price range
+    public async Task<List<IProductGrain>> FilterProductsAsync(
+        string? category = null,
+        decimal? minPrice = null,
+        decimal? maxPrice = null,
+        bool? inStock = null)
+    {
+        // Start with all products
+        var query = _client.Search<IProductGrain>();
+
+        // Build the filter dynamically
+        if (!string.IsNullOrEmpty(category) && minPrice.HasValue && maxPrice.HasValue && inStock.HasValue)
+        {
+            return await query
+                .Where(p => p.Category == category &&
+                            p.Price >= minPrice.Value &&
+                            p.Price <= maxPrice.Value &&
+                            p.InStock == inStock.Value)
+                .ToListAsync();
+        }
+
+        if (!string.IsNullOrEmpty(category) && inStock.HasValue)
+        {
+            return await query
+                .Where(p => p.Category == category && p.InStock == inStock.Value)
+                .ToListAsync();
+        }
+
+        if (!string.IsNullOrEmpty(category))
+        {
+            return await query
+                .Where(p => p.Category == category)
+                .ToListAsync();
+        }
+
+        if (inStock.HasValue)
+        {
+            return await query
+                .Where(p => p.InStock == inStock.Value)
+                .ToListAsync();
+        }
+
+        // Return all (use with caution in production)
+        return await query
+            .Where(p => p.InStock == true || p.InStock == false)
+            .ToListAsync();
+    }
+
+    // Count products by category
+    public async Task<int> CountByCategoryAsync(string category)
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.Category == category)
+            .CountAsync();
+    }
+
+    // Check if category has in-stock products
+    public async Task<bool> HasInStockProductsAsync(string category)
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.Category == category && p.InStock == true)
+            .AnyAsync();
+    }
+
+    // Find products under a price
+    public async Task<List<IProductGrain>> GetUnderPriceAsync(decimal maxPrice)
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.Price < maxPrice && p.InStock == true)
+            .ToListAsync();
+    }
+}
+```
+
+## API Endpoints
+
+```csharp filename="Program.cs (endpoints)"
+app.MapGet("/api/products", async (
+    string? search,
+    string? category,
+    decimal? minPrice,
+    decimal? maxPrice,
+    bool? inStock,
+    ProductCatalogService catalogService) =>
+{
+    List<IProductGrain> products;
+
+    if (!string.IsNullOrEmpty(search))
+    {
+        products = await catalogService.SearchByNameAsync(search);
+    }
+    else
+    {
+        products = await catalogService.FilterProductsAsync(category, minPrice, maxPrice, inStock);
+    }
+
+    var results = new List<object>();
+    foreach (var product in products)
+    {
+        var info = await product.GetInfoAsync();
+        results.Add(new
+        {
+            id = product.GetPrimaryKeyString(),
+            name = info.Name,
+            category = info.Category,
+            price = info.Price,
+            inStock = info.InStock
+        });
+    }
+
+    return Results.Ok(results);
+});
+
+app.MapGet("/api/products/categories/{category}/count", async (
+    string category,
+    ProductCatalogService catalogService) =>
+{
+    var count = await catalogService.CountByCategoryAsync(category);
+    return Results.Ok(new { category, count });
+});
+```
+
+## Usage Examples
+
+```csharp
+// Create products
+var laptop = client.GetGrain<IProductGrain>("laptop-1");
+await laptop.SetDetailsAsync("MacBook Pro 16", "electronics", 2499.99m, true);
+
+var phone = client.GetGrain<IProductGrain>("phone-1");
+await phone.SetDetailsAsync("iPhone 15 Pro", "electronics", 999.99m, true);
+
+var shirt = client.GetGrain<IProductGrain>("shirt-1");
+await shirt.SetDetailsAsync("Cotton T-Shirt", "clothing", 29.99m, true);
+
+// Search by name
+var laptops = await catalogService.SearchByNameAsync("MacBook");
+// Returns: laptop-1
+
+// Get by category
+var electronics = await catalogService.GetByCategoryAsync("electronics");
+// Returns: laptop-1, phone-1
+
+// Price range query
+var affordable = await catalogService.GetByPriceRangeAsync(0, 500);
+// Returns: shirt-1
+
+// Combined filters
+var inStockElectronics = await catalogService.FilterProductsAsync(
+    category: "electronics",
+    inStock: true
+);
+// Returns: laptop-1, phone-1
+
+// Budget electronics
+var budgetElectronics = await catalogService.FilterProductsAsync(
+    category: "electronics",
+    maxPrice: 1500,
+    inStock: true
+);
+// Returns: phone-1
+```
+
+## Next Steps
+
+- [Order Tracking](/examples/order-tracking) - Order management example
+- [API Reference](/api-reference/attributes) - Full API documentation

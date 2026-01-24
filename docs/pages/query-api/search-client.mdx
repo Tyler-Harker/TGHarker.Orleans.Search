@@ -1,0 +1,162 @@
+# Search Client
+
+The `ISearchableClusterClient` interface extends Orleans `IClusterClient` with search capabilities.
+
+## Getting the Client
+
+Inject `ISearchableClusterClient` from the dependency injection container:
+
+```csharp
+public class MyService
+{
+    private readonly ISearchableClusterClient _client;
+
+    public MyService(ISearchableClusterClient client)
+    {
+        _client = client;
+    }
+}
+```
+
+Or resolve it directly:
+
+```csharp
+var client = serviceProvider.GetRequiredService<ISearchableClusterClient>();
+```
+
+## The Search Method
+
+The `Search<TGrain>()` method starts a fluent query for a specific grain type:
+
+```csharp
+// Start a query for IUserGrain
+var query = client.Search<IUserGrain>();
+
+// Chain with Where and execution methods
+var users = await client.Search<IUserGrain>()
+    .Where(u => u.IsActive == true)
+    .ToListAsync();
+```
+
+## Query Flow
+
+```
+client.Search<TGrain>()     // Start query
+    .Where(predicate)        // Add filter(s)
+    .ToListAsync()           // Execute and return results
+```
+
+## Complete Example
+
+```csharp
+public class ProductService
+{
+    private readonly ISearchableClusterClient _client;
+
+    public ProductService(ISearchableClusterClient client)
+    {
+        _client = client;
+    }
+
+    // Find a single product
+    public async Task<IProductGrain?> FindByNameAsync(string name)
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.Name == name)
+            .FirstOrDefaultAsync();
+    }
+
+    // Find products in a category
+    public async Task<List<IProductGrain>> GetByCategoryAsync(string category)
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.Category == category)
+            .ToListAsync();
+    }
+
+    // Find products in price range
+    public async Task<List<IProductGrain>> GetInPriceRangeAsync(decimal min, decimal max)
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.Price >= min && p.Price <= max)
+            .ToListAsync();
+    }
+
+    // Count in-stock products
+    public async Task<int> CountInStockAsync()
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.InStock == true)
+            .CountAsync();
+    }
+
+    // Check if any products exist
+    public async Task<bool> AnyCategoryAsync(string category)
+    {
+        return await _client.Search<IProductGrain>()
+            .Where(p => p.Category == category)
+            .AnyAsync();
+    }
+}
+```
+
+## IClusterClient Compatibility
+
+`ISearchableClusterClient` extends `IClusterClient`, so you can use it for standard grain operations too:
+
+```csharp
+public class UserService
+{
+    private readonly ISearchableClusterClient _client;
+
+    public UserService(ISearchableClusterClient client)
+    {
+        _client = client;
+    }
+
+    // Standard Orleans: Get grain by ID
+    public IUserGrain GetUser(string userId)
+    {
+        return _client.GetGrain<IUserGrain>(userId);
+    }
+
+    // Orleans.Search: Find grains by state
+    public async Task<IUserGrain?> FindByEmailAsync(string email)
+    {
+        return await _client.Search<IUserGrain>()
+            .Where(u => u.Email == email)
+            .FirstOrDefaultAsync();
+    }
+}
+```
+
+## Type Safety
+
+The source generator creates type-safe `Where` extensions for each searchable grain type. Only `[Queryable]` properties can be used in predicates:
+
+```csharp
+[Searchable(typeof(IUserGrain))]
+public class UserState
+{
+    [Queryable]
+    public string Email { get; set; }
+
+    // Not queryable
+    public string InternalNotes { get; set; }
+}
+
+// Works - Email is queryable
+var users = await client.Search<IUserGrain>()
+    .Where(u => u.Email == "test@example.com")
+    .ToListAsync();
+
+// Compile error - InternalNotes is not queryable
+// var users = await client.Search<IUserGrain>()
+//     .Where(u => u.InternalNotes == "something")
+//     .ToListAsync();
+```
+
+## Next Steps
+
+- [Where Expressions](/query-api/where-expressions) - Supported filter expressions
+- [Async Methods](/query-api/async-methods) - Execution methods like ToListAsync

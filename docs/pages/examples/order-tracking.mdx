@@ -1,0 +1,340 @@
+# Order Tracking Example
+
+A complete example of using Orleans.Search for order management with status tracking and customer queries.
+
+## Define the Grain Interface
+
+```csharp filename="IOrderGrain.cs"
+public interface IOrderGrain : IGrainWithStringKey
+{
+    Task CreateAsync(string customerId, decimal totalAmount);
+    Task UpdateStatusAsync(string status);
+    Task<OrderInfo> GetInfoAsync();
+}
+
+public record OrderInfo(
+    string CustomerId,
+    string Status,
+    decimal TotalAmount,
+    DateTime CreatedAt,
+    DateTime? CompletedAt
+);
+```
+
+## Define the Searchable State
+
+```csharp filename="OrderState.cs"
+using TGHarker.Orleans.Search;
+
+[Searchable(typeof(IOrderGrain))]
+[GenerateSerializer]
+public class OrderState
+{
+    [Queryable(Indexed = true)]
+    [Id(0)]
+    public string CustomerId { get; set; } = string.Empty;
+
+    [Queryable(Indexed = true)]
+    [Id(1)]
+    public string Status { get; set; } = "pending";
+
+    [Queryable]
+    [Id(2)]
+    public decimal TotalAmount { get; set; }
+
+    [Queryable]
+    [Id(3)]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [Queryable]
+    [Id(4)]
+    public DateTime? CompletedAt { get; set; }
+}
+```
+
+## Implement the Grain
+
+```csharp filename="OrderGrain.cs"
+public class OrderGrain : Grain, IOrderGrain
+{
+    private readonly IPersistentState<OrderState> _state;
+
+    public OrderGrain(
+        [PersistentState("order", "OrderStorage")] IPersistentState<OrderState> state)
+    {
+        _state = state;
+    }
+
+    public async Task CreateAsync(string customerId, decimal totalAmount)
+    {
+        _state.State.CustomerId = customerId;
+        _state.State.TotalAmount = totalAmount;
+        _state.State.Status = "pending";
+        _state.State.CreatedAt = DateTime.UtcNow;
+        await _state.WriteStateAsync();
+    }
+
+    public async Task UpdateStatusAsync(string status)
+    {
+        _state.State.Status = status;
+
+        if (status == "completed" || status == "cancelled")
+        {
+            _state.State.CompletedAt = DateTime.UtcNow;
+        }
+
+        await _state.WriteStateAsync();
+    }
+
+    public Task<OrderInfo> GetInfoAsync() => Task.FromResult(new OrderInfo(
+        _state.State.CustomerId,
+        _state.State.Status,
+        _state.State.TotalAmount,
+        _state.State.CreatedAt,
+        _state.State.CompletedAt
+    ));
+}
+```
+
+## Order Service
+
+```csharp filename="OrderService.cs"
+public class OrderService
+{
+    private readonly ISearchableClusterClient _client;
+
+    public OrderService(ISearchableClusterClient client)
+    {
+        _client = client;
+    }
+
+    // Create a new order
+    public async Task<IOrderGrain> CreateOrderAsync(string customerId, decimal totalAmount)
+    {
+        var orderId = $"order-{Guid.NewGuid():N}";
+        var grain = _client.GetGrain<IOrderGrain>(orderId);
+        await grain.CreateAsync(customerId, totalAmount);
+        return grain;
+    }
+
+    // Get orders by status
+    public async Task<List<IOrderGrain>> GetByStatusAsync(string status)
+    {
+        return await _client.Search<IOrderGrain>()
+            .Where(o => o.Status == status)
+            .ToListAsync();
+    }
+
+    // Get orders for a customer
+    public async Task<List<IOrderGrain>> GetCustomerOrdersAsync(string customerId)
+    {
+        return await _client.Search<IOrderGrain>()
+            .Where(o => o.CustomerId == customerId)
+            .ToListAsync();
+    }
+
+    // Get pending orders for a customer
+    public async Task<List<IOrderGrain>> GetCustomerPendingOrdersAsync(string customerId)
+    {
+        return await _client.Search<IOrderGrain>()
+            .Where(o => o.CustomerId == customerId && o.Status == "pending")
+            .ToListAsync();
+    }
+
+    // Count orders by status
+    public async Task<int> CountByStatusAsync(string status)
+    {
+        return await _client.Search<IOrderGrain>()
+            .Where(o => o.Status == status)
+            .CountAsync();
+    }
+
+    // Check if customer has pending orders
+    public async Task<bool> HasPendingOrdersAsync(string customerId)
+    {
+        return await _client.Search<IOrderGrain>()
+            .Where(o => o.CustomerId == customerId && o.Status == "pending")
+            .AnyAsync();
+    }
+
+    // Get high-value orders
+    public async Task<List<IOrderGrain>> GetHighValueOrdersAsync(decimal minAmount)
+    {
+        return await _client.Search<IOrderGrain>()
+            .Where(o => o.TotalAmount >= minAmount)
+            .ToListAsync();
+    }
+
+    // Get orders in amount range
+    public async Task<List<IOrderGrain>> GetOrdersByAmountRangeAsync(decimal min, decimal max)
+    {
+        return await _client.Search<IOrderGrain>()
+            .Where(o => o.TotalAmount >= min && o.TotalAmount <= max)
+            .ToListAsync();
+    }
+
+    // Get recent orders (last N days)
+    public async Task<List<IOrderGrain>> GetRecentOrdersAsync(int days)
+    {
+        var cutoff = DateTime.UtcNow.AddDays(-days);
+        return await _client.Search<IOrderGrain>()
+            .Where(o => o.CreatedAt >= cutoff)
+            .ToListAsync();
+    }
+
+    // Get orders needing attention (pending for too long)
+    public async Task<List<IOrderGrain>> GetStaleOrdersAsync(int hours)
+    {
+        var cutoff = DateTime.UtcNow.AddHours(-hours);
+        return await _client.Search<IOrderGrain>()
+            .Where(o => o.Status == "pending" && o.CreatedAt < cutoff)
+            .ToListAsync();
+    }
+
+    // Dashboard statistics
+    public async Task<OrderStats> GetStatsAsync()
+    {
+        var pending = await CountByStatusAsync("pending");
+        var processing = await CountByStatusAsync("processing");
+        var shipped = await CountByStatusAsync("shipped");
+        var completed = await CountByStatusAsync("completed");
+        var cancelled = await CountByStatusAsync("cancelled");
+
+        return new OrderStats(pending, processing, shipped, completed, cancelled);
+    }
+}
+
+public record OrderStats(
+    int Pending,
+    int Processing,
+    int Shipped,
+    int Completed,
+    int Cancelled
+);
+```
+
+## API Endpoints
+
+```csharp filename="Program.cs (endpoints)"
+app.MapPost("/api/orders", async (
+    CreateOrderRequest request,
+    OrderService orderService) =>
+{
+    var order = await orderService.CreateOrderAsync(request.CustomerId, request.TotalAmount);
+    return Results.Created(
+        $"/api/orders/{order.GetPrimaryKeyString()}",
+        new { id = order.GetPrimaryKeyString() }
+    );
+});
+
+app.MapGet("/api/orders", async (
+    string? customerId,
+    string? status,
+    OrderService orderService) =>
+{
+    List<IOrderGrain> orders;
+
+    if (!string.IsNullOrEmpty(customerId) && !string.IsNullOrEmpty(status))
+    {
+        orders = status == "pending"
+            ? await orderService.GetCustomerPendingOrdersAsync(customerId)
+            : await orderService.GetCustomerOrdersAsync(customerId);
+    }
+    else if (!string.IsNullOrEmpty(customerId))
+    {
+        orders = await orderService.GetCustomerOrdersAsync(customerId);
+    }
+    else if (!string.IsNullOrEmpty(status))
+    {
+        orders = await orderService.GetByStatusAsync(status);
+    }
+    else
+    {
+        return Results.BadRequest("Provide customerId or status");
+    }
+
+    var results = new List<object>();
+    foreach (var order in orders)
+    {
+        var info = await order.GetInfoAsync();
+        results.Add(new
+        {
+            id = order.GetPrimaryKeyString(),
+            customerId = info.CustomerId,
+            status = info.Status,
+            totalAmount = info.TotalAmount,
+            createdAt = info.CreatedAt
+        });
+    }
+
+    return Results.Ok(results);
+});
+
+app.MapPatch("/api/orders/{orderId}/status", async (
+    string orderId,
+    UpdateStatusRequest request,
+    ISearchableClusterClient client) =>
+{
+    var order = client.GetGrain<IOrderGrain>(orderId);
+    await order.UpdateStatusAsync(request.Status);
+    return Results.NoContent();
+});
+
+app.MapGet("/api/orders/stats", async (OrderService orderService) =>
+{
+    var stats = await orderService.GetStatsAsync();
+    return Results.Ok(stats);
+});
+
+record CreateOrderRequest(string CustomerId, decimal TotalAmount);
+record UpdateStatusRequest(string Status);
+```
+
+## Usage Examples
+
+```csharp
+// Create orders
+var order1 = await orderService.CreateOrderAsync("customer-1", 299.99m);
+var order2 = await orderService.CreateOrderAsync("customer-1", 149.99m);
+var order3 = await orderService.CreateOrderAsync("customer-2", 599.99m);
+
+// Update status
+await order1.UpdateStatusAsync("processing");
+await order2.UpdateStatusAsync("shipped");
+
+// Get pending orders
+var pending = await orderService.GetByStatusAsync("pending");
+// Returns: order3
+
+// Get customer orders
+var customerOrders = await orderService.GetCustomerOrdersAsync("customer-1");
+// Returns: order1, order2
+
+// Check for pending orders
+var hasPending = await orderService.HasPendingOrdersAsync("customer-2");
+// Returns: true
+
+// Get high-value orders
+var highValue = await orderService.GetHighValueOrdersAsync(500);
+// Returns: order3
+
+// Get dashboard stats
+var stats = await orderService.GetStatsAsync();
+// Returns: { Pending: 1, Processing: 1, Shipped: 1, Completed: 0, Cancelled: 0 }
+
+// Find stale orders (pending for more than 24 hours)
+var stale = await orderService.GetStaleOrdersAsync(24);
+```
+
+## Order Status Flow
+
+```
+pending -> processing -> shipped -> completed
+    |                       |
+    +----> cancelled <------+
+```
+
+## Next Steps
+
+- [API Reference](/api-reference/attributes) - Full API documentation
+- [Getting Started](/getting-started/quick-start) - Back to basics
