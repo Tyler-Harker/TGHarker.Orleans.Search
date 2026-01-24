@@ -1,0 +1,95 @@
+# Search Providers
+
+Orleans.Search uses a pluggable provider architecture that allows you to use different database backends for your search index.
+
+## How Providers Work
+
+A search provider is responsible for:
+
+1. **Storing grain state** in a searchable database
+2. **Translating LINQ queries** to database-specific queries
+3. **Returning grain IDs** that match search predicates
+4. **Full-text search** (optional, database-specific)
+
+## Architecture
+
+```
+IClusterClient.Search<TGrain>()
+    |
+    v
+OrleansQueryProvider (LINQ translation)
+    |
+    v
+ISearchProvider<TGrain, TState>
+    |
+    v
+SearchProviderBase<TGrain, TState, TEntity>
+    |
+    v
+Database-Specific Provider (PostgreSQL, etc.)
+    |
+    v
+Database (PostgreSQL, SQL Server, etc.)
+```
+
+## Available Providers
+
+| Provider | Package | Status |
+|----------|---------|--------|
+| [PostgreSQL](/search-providers/postgresql) | `TGHarker.Orleans.Search.PostgreSql` | Stable |
+
+## Choosing a Provider
+
+### PostgreSQL
+
+Best for:
+- Production workloads
+- Full-text search with ranking
+- Complex queries with multiple filters
+- Large datasets requiring indexes
+
+```csharp
+builder.Services.AddOrleansSearch()
+    .UsePostgreSql(connectionString);
+```
+
+## Custom Providers
+
+You can create custom providers for other databases. See [Creating Custom Providers](/search-providers/creating-custom-providers) for details.
+
+## Provider Registration
+
+All providers follow the same registration pattern:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+// Configure Orleans
+builder.UseOrleans(siloBuilder =>
+{
+    siloBuilder.UseLocalhostClustering();
+    siloBuilder.AddMemoryGrainStorage("InnerStorage");
+    siloBuilder.AddSearchableGrainStorage("InnerStorage");
+});
+
+// Add Orleans.Search with your chosen provider
+builder.Services.AddOrleansSearch()
+    .UsePostgreSql(connectionString);  // Or your custom provider
+```
+
+## Source-Generated Components
+
+When you mark a grain state with `[Searchable]`, the source generator creates:
+
+| Component | Purpose |
+|-----------|---------|
+| Entity Class | EF Core entity with queryable properties |
+| Search Provider | Maps state to entity and executes queries |
+| Entity Configuration | Database indexes and constraints |
+
+These generated components work with any provider that uses Entity Framework Core.
+
+## Next Steps
+
+- [PostgreSQL Provider](/search-providers/postgresql) - Configure PostgreSQL
+- [Creating Custom Providers](/search-providers/creating-custom-providers) - Build your own provider

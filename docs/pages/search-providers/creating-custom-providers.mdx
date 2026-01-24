@@ -1,0 +1,339 @@
+# Creating Custom Providers
+
+You can create custom search providers to support databases other than PostgreSQL.
+
+## Architecture Overview
+
+A custom provider consists of:
+
+1. **DbContext** - Entity Framework Core context for your database
+2. **Extension Methods** - Registration methods for the DI container
+3. **Provider Implementation** - (Optional) Custom provider base class
+
+The source generator handles creating the actual search providers - you just need to provide the database infrastructure.
+
+## Required Interfaces
+
+### ISearchEntity
+
+All entity classes implement this interface:
+
+```csharp
+public interface ISearchEntity
+{
+    string GrainId { get; set; }      // Primary key - the grain ID
+    long Version { get; set; }         // Optimistic concurrency version
+    DateTime LastUpdated { get; set; } // Timestamp of last update
+}
+```
+
+### ISearchProvider&lt;TGrain, TState&gt;
+
+The core provider interface:
+
+```csharp
+public interface ISearchProvider<TGrain, TState>
+    where TGrain : IGrain
+{
+    Type EntityType { get; }
+    string GrainIdPropertyName => "GrainId";
+
+    IQueryable<object> GetDbSet();
+
+    Expression MapGrainPropertyToEntity(MemberInfo member, ParameterExpression entityParameter);
+    Expression MapGrainMethodToEntityProperty(MethodInfo method, ParameterExpression entityParameter);
+
+    Task<List<string>> QueryWithFilterAsync(LambdaExpression predicate);
+    Task<List<string>> GetAllGrainIdsAsync();
+    Task UpsertAsync(string grainId, TState state, long version, DateTime timestamp);
+    Task DeleteAsync(string grainId);
+    Task<IEnumerable<string>> FullTextSearchAsync(string query, int maxResults, double minScore = 0.0);
+}
+```
+
+### SearchProviderBase
+
+Abstract base class providing common functionality:
+
+```csharp
+public abstract class SearchProviderBase<TGrain, TState, TEntity>
+    : ISearchProvider<TGrain, TState>
+    where TGrain : IGrain
+    where TEntity : class, ISearchEntity, new()
+{
+    protected DbContext DbContext { get; }
+
+    protected abstract IQueryable<TEntity> GetEntityDbSet();
+    protected abstract void MapStateToEntity(TState state, TEntity entity);
+
+    public abstract Expression MapGrainPropertyToEntity(
+        MemberInfo member,
+        ParameterExpression entityParameter);
+
+    public abstract Expression MapGrainMethodToEntityProperty(
+        MethodInfo method,
+        ParameterExpression entityParameter);
+}
+```
+
+## Step-by-Step Implementation
+
+### Step 1: Create Your DbContext
+
+Create a DbContext that auto-discovers entities:
+
+```csharp
+using Microsoft.EntityFrameworkCore;
+using TGHarker.Orleans.Search.Abstractions;
+
+public class MySqlSearchContext : DbContext
+{
+    public MySqlSearchContext(DbContextOptions<MySqlSearchContext> options)
+        : base(options)
+    {
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Discover and register all ISearchEntity types
+        var entityTypes = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(a => a.GetTypes())
+            .Where(t => typeof(ISearchEntity).IsAssignableFrom(t)
+                && t.IsClass
+                && !t.IsAbstract);
+
+        foreach (var entityType in entityTypes)
+        {
+            modelBuilder.Entity(entityType);
+        }
+
+        // Apply all IEntityTypeConfiguration implementations
+        var configTypes = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(a => a.GetTypes())
+            .Where(t => t.GetInterfaces().Any(i =>
+                i.IsGenericType &&
+                i.GetGenericTypeDefinition() == typeof(IEntityTypeConfiguration<>)));
+
+        foreach (var configType in configTypes)
+        {
+            var configInstance = Activator.CreateInstance(configType);
+            if (configInstance != null)
+            {
+                modelBuilder.ApplyConfiguration((dynamic)configInstance);
+            }
+        }
+    }
+}
+```
+
+### Step 2: Create Extension Methods
+
+Create extension methods for easy registration:
+
+```csharp
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using TGHarker.Orleans.Search;
+
+public static class MySqlSearchExtensions
+{
+    public static IOrleansSearchBuilder UseMySql(
+        this IOrleansSearchBuilder builder,
+        string connectionString)
+    {
+        builder.Services.AddDbContext<MySqlSearchContext>(options =>
+        {
+            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+        });
+
+        // Register the DbContext as the base DbContext for providers
+        builder.Services.AddScoped<DbContext>(sp =>
+            sp.GetRequiredService<MySqlSearchContext>());
+
+        return builder;
+    }
+
+    public static IOrleansSearchBuilder UseMySql(
+        this IOrleansSearchBuilder builder,
+        Action<DbContextOptionsBuilder> configureOptions)
+    {
+        builder.Services.AddDbContext<MySqlSearchContext>(configureOptions);
+
+        builder.Services.AddScoped<DbContext>(sp =>
+            sp.GetRequiredService<MySqlSearchContext>());
+
+        return builder;
+    }
+}
+```
+
+### Step 3: Create NuGet Package
+
+Structure your package:
+
+```
+MyCompany.Orleans.Search.MySql/
+├── MySqlSearchContext.cs
+├── Extensions/
+│   └── MySqlSearchExtensions.cs
+└── MyCompany.Orleans.Search.MySql.csproj
+```
+
+Project file:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <PackageId>MyCompany.Orleans.Search.MySql</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TGHarker.Orleans.Search" Version="1.0.0" />
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
+  </ItemGroup>
+</Project>
+```
+
+## Usage
+
+Once your provider is created:
+
+```csharp
+// Install packages
+// dotnet add package TGHarker.Orleans.Search
+// dotnet add package MyCompany.Orleans.Search.MySql
+
+// Configure
+builder.Services.AddOrleansSearch()
+    .UseMySql("Server=localhost;Database=orleanssearch;User=root;Password=password");
+```
+
+## Full-Text Search Support
+
+For databases with full-text search, override `FullTextSearchAsync`:
+
+```csharp
+public override async Task<IEnumerable<string>> FullTextSearchAsync(
+    string query,
+    int maxResults,
+    double minScore = 0.0)
+{
+    // Implement database-specific full-text search
+    var results = await DbContext.Set<TEntity>()
+        .FromSqlRaw(@"
+            SELECT * FROM ""{0}""
+            WHERE MATCH(SearchVector) AGAINST({1} IN NATURAL LANGUAGE MODE)
+            LIMIT {2}",
+            typeof(TEntity).Name,
+            query,
+            maxResults)
+        .Select(e => e.GrainId)
+        .ToListAsync();
+
+    return results;
+}
+```
+
+## Testing Your Provider
+
+Create integration tests:
+
+```csharp
+public class MySqlProviderTests
+{
+    [Fact]
+    public async Task CanUpsertAndQuery()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddOrleansSearch()
+            .UseMySql(TestConnectionString);
+
+        var provider = services.BuildServiceProvider();
+        var context = provider.GetRequiredService<MySqlSearchContext>();
+
+        // Ensure database is created
+        await context.Database.EnsureCreatedAsync();
+
+        // Act & Assert
+        // Test your provider operations
+    }
+}
+```
+
+## Example: SQL Server Provider
+
+Here's a complete example for SQL Server:
+
+```csharp
+// SqlServerSearchContext.cs
+public class SqlServerSearchContext : DbContext
+{
+    public SqlServerSearchContext(DbContextOptions<SqlServerSearchContext> options)
+        : base(options)
+    {
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Auto-discover entities
+        var entityTypes = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(a => a.GetTypes())
+            .Where(t => typeof(ISearchEntity).IsAssignableFrom(t)
+                && t.IsClass && !t.IsAbstract);
+
+        foreach (var entityType in entityTypes)
+        {
+            modelBuilder.Entity(entityType);
+        }
+
+        // Apply configurations
+        modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+    }
+}
+
+// SqlServerSearchExtensions.cs
+public static class SqlServerSearchExtensions
+{
+    public static IOrleansSearchBuilder UseSqlServer(
+        this IOrleansSearchBuilder builder,
+        string connectionString)
+    {
+        builder.Services.AddDbContext<SqlServerSearchContext>(options =>
+        {
+            options.UseSqlServer(connectionString);
+        });
+
+        builder.Services.AddScoped<DbContext>(sp =>
+            sp.GetRequiredService<SqlServerSearchContext>());
+
+        return builder;
+    }
+}
+```
+
+Usage:
+
+```csharp
+builder.Services.AddOrleansSearch()
+    .UseSqlServer("Server=localhost;Database=orleanssearch;Trusted_Connection=True;");
+```
+
+## Best Practices
+
+1. **Auto-discover entities** - Scan assemblies for `ISearchEntity` implementations
+2. **Apply configurations** - Find and apply all `IEntityTypeConfiguration<T>` types
+3. **Register DbContext** - Ensure your context is registered as `DbContext` for providers
+4. **Handle concurrency** - The base class handles optimistic concurrency via `Version`
+5. **Create indexes** - Ensure generated entity configurations create appropriate indexes
+6. **Test thoroughly** - Integration tests are essential for database providers
+
+## Next Steps
+
+- [PostgreSQL Provider](/search-providers/postgresql) - Reference implementation
+- [Core Concepts](/core-concepts/overview) - Understanding the architecture

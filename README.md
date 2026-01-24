@@ -87,8 +87,8 @@ builder.Services.AddOrleansSearch()
 ### 4. Query Your Grains
 
 ```csharp
-// Get the searchable client
-var client = serviceProvider.GetRequiredService<ISearchableClusterClient>();
+// Get the cluster client
+var client = serviceProvider.GetRequiredService<IClusterClient>();
 
 // Search by email
 var user = await client.Search<IUserGrain>()
@@ -171,7 +171,7 @@ await client.Search<IGrain>().Where(...).AnyAsync();
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Your Application                            │
 ├─────────────────────────────────────────────────────────────────┤
-│  ISearchableClusterClient.Search<TGrain>().Where(...).ToListAsync()
+│      IClusterClient.Search<TGrain>().Where(...).ToListAsync()    │
 ├─────────────────────────────────────────────────────────────────┤
 │                    OrleansQueryProvider                          │
 │            (Translates LINQ to EF Core queries)                  │
@@ -182,10 +182,10 @@ await client.Search<IGrain>().Where(...).AnyAsync();
 │                   SearchableGrainStorage                         │
 │        (Intercepts writes, syncs to search index)                │
 ├─────────────────────────────────────────────────────────────────┤
-│                  PostgreSqlSearchContext                         │
-│                     (EF Core DbContext)                          │
+│                   Database Search Provider                       │
+│            (PostgreSQL, SQL Server, etc.)                        │
 ├─────────────────────────────────────────────────────────────────┤
-│                       PostgreSQL                                 │
+│                         Database                                 │
 │              (Search index + full-text search)                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -200,6 +200,10 @@ await client.Search<IGrain>().Where(...).AnyAsync();
 | `TGHarker.Orleans.Search.PostgreSQL` | PostgreSQL/EF Core implementation |
 | `TGHarker.Orleans.Search.SourceGenerator` | Generates entities, providers, and extensions |
 | `TGHarker.Orleans.Search` | Meta package |
+
+## Documentation
+
+Full documentation is available at: **https://tyler-harker.github.io/TGHarker.Orleans.Search/**
 
 ## Samples
 
