@@ -3,9 +3,9 @@ import { DocsThemeConfig } from 'nextra-theme-docs'
 const config: DocsThemeConfig = {
   logo: <span style={{ fontWeight: 700 }}>Orleans.Search</span>,
   project: {
-    link: 'https://github.com/TGHarker/TGHarker.Orleans.Search',
+    link: 'https://github.com/Tyler-Harker/TGHarker.Orleans.Search',
   },
-  docsRepositoryBase: 'https://github.com/TGHarker/TGHarker.Orleans.Search/tree/master/docs',
+  docsRepositoryBase: 'https://github.com/Tyler-Harker/TGHarker.Orleans.Search/tree/master/docs',
   head: (
     <>
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
