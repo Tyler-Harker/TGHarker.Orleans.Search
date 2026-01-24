@@ -209,6 +209,16 @@ See the [Samples](./Samples/) folder for complete working examples including:
 - E-commerce products with price ranges
 - Order tracking with status filtering
 
+## Claude Code Integration
+
+If you're using [Claude Code](https://claude.ai/code), you can get interactive help implementing search for your Orleans grains:
+
+```
+/orleans-search
+```
+
+This skill provides step-by-step guidance on attributes, silo configuration, and query patterns.
+
 ## How It Works
 
 1. **At Build Time**: The source generator scans for `[Searchable]` attributes and generates:
