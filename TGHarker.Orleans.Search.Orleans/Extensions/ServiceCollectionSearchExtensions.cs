@@ -15,12 +15,29 @@ public static class ServiceCollectionSearchExtensions
 {
     /// <summary>
     /// Registers core Orleans search services (resolver and client).
-    /// Call this before registering individual search providers.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Important:</strong> Most users should NOT call this method directly.
+    /// Instead, use the generated <c>AddOrleansSearch()</c> extension method from your
+    /// state assembly's <c>.Generated</c> namespace. That method calls this internally
+    /// and also registers all your search providers.
+    /// </para>
+    /// <para>
+    /// Example:
+    /// <code>
+    /// // Correct - use the generated method:
+    /// using YourNamespace.Models.Generated;
+    /// services.AddOrleansSearch();
+    ///
+    /// // Only call AddOrleansSearchCore directly if you need manual provider registration
+    /// </code>
+    /// </para>
+    /// </remarks>
     /// <param name="services">The service collection</param>
     /// <param name="assemblies">Assemblies to scan for queryable state types</param>
     /// <returns>The service collection for chaining</returns>
-    public static IServiceCollection AddOrleansSearch(this IServiceCollection services, params Assembly[] assemblies)
+    public static IServiceCollection AddOrleansSearchCore(this IServiceCollection services, params Assembly[] assemblies)
     {
         if (assemblies == null || assemblies.Length == 0)
         {

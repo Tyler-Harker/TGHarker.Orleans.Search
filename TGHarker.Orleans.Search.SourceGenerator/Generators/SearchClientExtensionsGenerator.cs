@@ -84,7 +84,8 @@ internal static class SearchClientExtensionsGenerator
         builder.AppendLine("            return searchable.Search<TGrain>();");
         builder.AppendLine();
         builder.AppendLine("        throw new InvalidOperationException(");
-        builder.AppendLine("            \"The IClusterClient is not searchable. Ensure AddOrleansSearch() was called during service registration.\");");
+        builder.AppendLine("            \"The IClusterClient is not searchable. Ensure AddOrleansSearch() from your state assembly's .Generated namespace \" +");
+        builder.AppendLine("            \"was called during service registration (not AddOrleansSearchCore from TGHarker.Orleans.Search.Orleans.Extensions).\");");
         builder.AppendLine("    }");
 
         foreach (var state in statesList)
@@ -122,7 +123,8 @@ internal static class SearchClientExtensionsGenerator
             builder.AppendLine($"            return searchable.Search<{grainInterface}>().Where(predicate);");
             builder.AppendLine();
             builder.AppendLine("        throw new InvalidOperationException(");
-            builder.AppendLine("            \"The IClusterClient is not searchable. Ensure AddOrleansSearch() was called during service registration.\");");
+            builder.AppendLine("            \"The IClusterClient is not searchable. Ensure AddOrleansSearch() from your state assembly's .Generated namespace \" +");
+            builder.AppendLine("            \"was called during service registration (not AddOrleansSearchCore from TGHarker.Orleans.Search.Orleans.Extensions).\");");
             builder.AppendLine("    }");
 
             // Generate Where extension on IQueryable<TGrain>
