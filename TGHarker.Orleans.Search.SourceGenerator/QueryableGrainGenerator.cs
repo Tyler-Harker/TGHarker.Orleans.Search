@@ -274,7 +274,7 @@ public class QueryableGrainGenerator : IIncrementalGenerator
         builder.AppendLine("    public static IOrleansSearchBuilder AddOrleansSearch(this IServiceCollection services)");
         builder.AppendLine("    {");
         builder.AppendLine($"        // Register core search services using the state assembly");
-        builder.AppendLine($"        services.AddOrleansSearch(typeof({statesList[0].StateTypeName}).Assembly);");
+        builder.AppendLine($"        services.AddOrleansSearchCore(typeof({statesList[0].StateTypeName}).Assembly);");
         builder.AppendLine();
         builder.AppendLine("        // Register all search providers");
 

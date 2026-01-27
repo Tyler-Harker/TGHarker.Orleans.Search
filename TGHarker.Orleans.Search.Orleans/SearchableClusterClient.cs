@@ -48,7 +48,10 @@ public class SearchableClusterClient : ISearchableClusterClient
         scope.Dispose();
         throw new InvalidOperationException(
             $"No search provider registered for grain type {typeof(TGrain).Name}. " +
-            $"Ensure the grain's state class is marked with [Queryable] and the search provider is registered.");
+            $"This usually means you're using the wrong AddOrleansSearch() method. " +
+            $"Make sure to import the GENERATED extension from your state assembly's namespace " +
+            $"(e.g., 'using YourNamespace.Models.Generated;') and NOT from TGHarker.Orleans.Search.Orleans.Extensions. " +
+            $"The generated AddOrleansSearch() method registers all your search providers automatically.");
     }
 
     #region IClusterClient Properties

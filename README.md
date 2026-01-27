@@ -79,10 +79,17 @@ builder.UseOrleans(siloBuilder =>
     siloBuilder.AddSearchableGrainStorage("InnerStorage");
 });
 
-// Add search services
+// Add search services - IMPORTANT: use the generated namespace!
+using YourNamespace.Models.Generated;  // <-- Use YOUR state namespace + .Generated
+
 builder.Services.AddOrleansSearch()
     .UsePostgreSql("Host=localhost;Database=mydb;Username=postgres;Password=postgres");
 ```
+
+> **⚠️ Common Mistake:** Do NOT import `TGHarker.Orleans.Search.Orleans.Extensions` for `AddOrleansSearch()`.
+> That namespace contains the internal `AddOrleansSearchCore()` method. Instead, import the `.Generated`
+> namespace from your state assembly (e.g., `YourNamespace.Models.Generated`). The source generator creates
+> an `AddOrleansSearch()` method there that properly registers all your search providers.
 
 ### 4. Query Your Grains
 
@@ -247,6 +254,40 @@ This skill provides step-by-step guidance on attributes, silo configuration, and
 - .NET 10.0+
 - Microsoft Orleans 10.0+
 - PostgreSQL 12+
+
+## Troubleshooting
+
+### "No search provider registered for grain type..."
+
+This error means the search providers weren't registered. **The most common cause** is importing the wrong `AddOrleansSearch()` method.
+
+**Wrong:**
+```csharp
+using TGHarker.Orleans.Search.Orleans.Extensions;  // ❌ Don't use this!
+services.AddOrleansSearch();  // This only registers core services, not your providers
+```
+
+**Correct:**
+```csharp
+using YourNamespace.Models.Generated;  // ✅ Use your state namespace + .Generated
+services.AddOrleansSearch();  // This registers core services AND all your search providers
+```
+
+The source generator creates an `AddOrleansSearch()` extension method in your state assembly's `.Generated` namespace. This method:
+1. Calls the internal `AddOrleansSearchCore()` to set up the search infrastructure
+2. Registers all your generated search providers (e.g., `AddUserSearch()`, `AddTenantSearch()`)
+
+### For Aspire Users
+
+When using .NET Aspire, you typically use `AddNpgsqlDbContext` instead of `UsePostgreSql`:
+
+```csharp
+using YourNamespace.Models.Generated;
+
+// Aspire handles the connection string automatically
+builder.AddNpgsqlDbContext<PostgreSqlSearchContext>("searchdb");
+builder.Services.AddOrleansSearch();  // No need for .UsePostgreSql()
+```
 
 ## Known Limitations
 
