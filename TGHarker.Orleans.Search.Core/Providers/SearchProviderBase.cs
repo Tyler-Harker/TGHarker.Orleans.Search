@@ -105,26 +105,35 @@ public abstract class SearchProviderBase<TGrain, TState, TEntity> : ISearchProvi
     /// </summary>
     /// <param name="grainId">The grain identifier.</param>
     /// <param name="state">The grain state to index.</param>
-    /// <param name="version">Version number for optimistic concurrency.</param>
+    /// <param name="version">Version number for optimistic concurrency. If 0 or less, version will be auto-incremented.</param>
     /// <param name="timestamp">When this update occurred.</param>
     public async Task UpsertAsync(string grainId, TState state, long version, DateTime timestamp)
     {
         var existing = await GetEntityDbSet().FirstOrDefaultAsync(e => e.GrainId == grainId);
 
-        if (existing != null && existing.Version >= version)
+        // Auto-increment version if not explicitly provided (version <= 0) or if caller passes a fixed value
+        // This ensures updates always succeed when called from the storage decorator
+        long newVersion;
+        if (existing != null)
         {
-            // Stale event, ignore
-            return;
+            // For updates: only skip if an explicit version was provided and it's stale
+            if (version > 0 && existing.Version >= version)
+            {
+                // Stale event with explicit version, ignore
+                return;
+            }
+            // Auto-increment from existing version
+            newVersion = existing.Version + 1;
         }
-
-        if (existing == null)
+        else
         {
             existing = new TEntity { GrainId = grainId };
             DbContext.Add(existing);
+            newVersion = version > 0 ? version : 1;
         }
 
         MapStateToEntity(state, existing);
-        existing.Version = version;
+        existing.Version = newVersion;
         existing.LastUpdated = timestamp;
 
         await DbContext.SaveChangesAsync();

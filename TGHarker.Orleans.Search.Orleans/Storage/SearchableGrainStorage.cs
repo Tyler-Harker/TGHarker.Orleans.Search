@@ -110,12 +110,12 @@ public class SearchableGrainStorage : IGrainStorage, ILifecycleParticipant<ISilo
             // Extract the grain ID as string
             var grainIdString = grainId.Key.ToString();
 
-            // Call UpsertAsync
+            // Call UpsertAsync - version is auto-incremented by the provider
             var task = (Task)upsertMethod.Invoke(provider, new object[]
             {
                 grainIdString!,
                 grainState.State!,
-                1, // Version - could extract from ETag if needed
+                0L, // Version: 0 signals auto-increment
                 DateTime.UtcNow
             })!;
 
