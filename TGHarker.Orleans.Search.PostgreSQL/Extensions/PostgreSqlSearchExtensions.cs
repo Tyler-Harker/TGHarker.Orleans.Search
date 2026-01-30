@@ -68,6 +68,7 @@ public static class PostgreSqlSearchExtensions
     /// <remarks>
     /// Use this overload when you have a source-generated DbContext (e.g., SearchDesignTimeContext)
     /// that has explicit entity configurations for better EF Core tooling support.
+    /// The TContext constructor must accept DbContextOptions&lt;PostgreSqlSearchContext&gt;.
     /// </remarks>
     public static IOrleansSearchBuilder UsePostgreSql<TContext>(
         this IOrleansSearchBuilder builder,
@@ -75,14 +76,19 @@ public static class PostgreSqlSearchExtensions
         Action<DbContextOptionsBuilder>? configureOptions = null)
         where TContext : PostgreSqlSearchContext
     {
-        builder.Services.AddDbContext<TContext>(options =>
+        // Build options for the base PostgreSqlSearchContext type (what the generated context expects)
+        builder.Services.AddDbContext<PostgreSqlSearchContext>(options =>
         {
             options.UseNpgsql(connectionString);
             configureOptions?.Invoke(options);
         });
 
-        // Register PostgreSqlSearchContext to resolve to TContext for internal library compatibility
-        builder.Services.AddScoped<PostgreSqlSearchContext>(sp => sp.GetRequiredService<TContext>());
+        // Register TContext to be created using the PostgreSqlSearchContext options
+        builder.Services.AddScoped<TContext>(sp =>
+        {
+            var options = sp.GetRequiredService<DbContextOptions<PostgreSqlSearchContext>>();
+            return (TContext)Activator.CreateInstance(typeof(TContext), options)!;
+        });
 
         return builder;
     }
@@ -97,16 +103,22 @@ public static class PostgreSqlSearchExtensions
     /// <remarks>
     /// Use this overload when you have a source-generated DbContext (e.g., SearchDesignTimeContext)
     /// that has explicit entity configurations for better EF Core tooling support.
+    /// The TContext constructor must accept DbContextOptions&lt;PostgreSqlSearchContext&gt;.
     /// </remarks>
     public static IOrleansSearchBuilder UsePostgreSql<TContext>(
         this IOrleansSearchBuilder builder,
         Action<DbContextOptionsBuilder> configureOptions)
         where TContext : PostgreSqlSearchContext
     {
-        builder.Services.AddDbContext<TContext>(configureOptions);
+        // Build options for the base PostgreSqlSearchContext type (what the generated context expects)
+        builder.Services.AddDbContext<PostgreSqlSearchContext>(configureOptions);
 
-        // Register PostgreSqlSearchContext to resolve to TContext for internal library compatibility
-        builder.Services.AddScoped<PostgreSqlSearchContext>(sp => sp.GetRequiredService<TContext>());
+        // Register TContext to be created using the PostgreSqlSearchContext options
+        builder.Services.AddScoped<TContext>(sp =>
+        {
+            var options = sp.GetRequiredService<DbContextOptions<PostgreSqlSearchContext>>();
+            return (TContext)Activator.CreateInstance(typeof(TContext), options)!;
+        });
 
         return builder;
     }
