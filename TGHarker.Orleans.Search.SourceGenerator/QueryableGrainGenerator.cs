@@ -54,9 +54,16 @@ public class QueryableGrainGenerator : IIncrementalGenerator
                 }
             }
 
-            // Generate DbContext partial class
+            // Generate DbContext configuration classes
             var dbContextCode = DbContextGenerator.Generate(states);
             spc.AddSource("SearchDbContext.g.cs", dbContextCode);
+
+            // Generate design-time factory for EF Core migrations
+            var designTimeCode = DesignTimeContextGenerator.Generate(states);
+            if (!string.IsNullOrEmpty(designTimeCode))
+            {
+                spc.AddSource("SearchDesignTimeContext.g.cs", designTimeCode);
+            }
 
             // Generate extension methods for DI registration
             var extensionsCode = GenerateExtensions(states);
